@@ -1,0 +1,1807 @@
+ARM GAS  /tmp/ccxupRjh.s 			page 1
+
+
+   1              		.cpu cortex-m3
+   2              		.eabi_attribute 20, 1
+   3              		.eabi_attribute 21, 1
+   4              		.eabi_attribute 23, 3
+   5              		.eabi_attribute 24, 1
+   6              		.eabi_attribute 25, 1
+   7              		.eabi_attribute 26, 1
+   8              		.eabi_attribute 30, 1
+   9              		.eabi_attribute 34, 1
+  10              		.eabi_attribute 18, 4
+  11              		.file	"f_eeprom.c"
+  12              		.text
+  13              	.Ltext0:
+  14              		.cfi_sections	.debug_frame
+  15              		.section	.text.EE_FindValidPage,"ax",%progbits
+  16              		.align	1
+  17              		.syntax unified
+  18              		.thumb
+  19              		.thumb_func
+  20              		.fpu softvfp
+  22              	EE_FindValidPage:
+  23              	.LFB70:
+  24              		.file 1 "Drivers/FEEPROM/f_eeprom.c"
+   1:Drivers/FEEPROM/f_eeprom.c **** /**
+   2:Drivers/FEEPROM/f_eeprom.c ****   ******************************************************************************
+   3:Drivers/FEEPROM/f_eeprom.c ****   * @file    EEPROM_Emulation/src/eeprom.c 
+   4:Drivers/FEEPROM/f_eeprom.c ****   * @author  MCD Application Team
+   5:Drivers/FEEPROM/f_eeprom.c ****   * @version V3.1.0
+   6:Drivers/FEEPROM/f_eeprom.c ****   * @date    07/27/2009
+   7:Drivers/FEEPROM/f_eeprom.c ****   * @brief   This file provides all the EEPROM emulation firmware functions.
+   8:Drivers/FEEPROM/f_eeprom.c ****   ******************************************************************************
+   9:Drivers/FEEPROM/f_eeprom.c ****   * @copy
+  10:Drivers/FEEPROM/f_eeprom.c ****   *
+  11:Drivers/FEEPROM/f_eeprom.c ****   * THE PRESENT FIRMWARE WHICH IS FOR GUIDANCE ONLY AIMS AT PROVIDING CUSTOMERS
+  12:Drivers/FEEPROM/f_eeprom.c ****   * WITH CODING INFORMATION REGARDING THEIR PRODUCTS IN ORDER FOR THEM TO SAVE
+  13:Drivers/FEEPROM/f_eeprom.c ****   * TIME. AS A RESULT, STMICROELECTRONICS SHALL NOT BE HELD LIABLE FOR ANY
+  14:Drivers/FEEPROM/f_eeprom.c ****   * DIRECT, INDIRECT OR CONSEQUENTIAL DAMAGES WITH RESPECT TO ANY CLAIMS ARISING
+  15:Drivers/FEEPROM/f_eeprom.c ****   * FROM THE CONTENT OF SUCH FIRMWARE AND/OR THE USE MADE BY CUSTOMERS OF THE
+  16:Drivers/FEEPROM/f_eeprom.c ****   * CODING INFORMATION CONTAINED HEREIN IN CONNECTION WITH THEIR PRODUCTS.
+  17:Drivers/FEEPROM/f_eeprom.c ****   *
+  18:Drivers/FEEPROM/f_eeprom.c ****   * <h2><center>&copy; COPYRIGHT 2009 STMicroelectronics</center></h2>
+  19:Drivers/FEEPROM/f_eeprom.c ****   */ 
+  20:Drivers/FEEPROM/f_eeprom.c **** /** @addtogroup EEPROM_Emulation
+  21:Drivers/FEEPROM/f_eeprom.c ****   * @{
+  22:Drivers/FEEPROM/f_eeprom.c ****   */ 
+  23:Drivers/FEEPROM/f_eeprom.c **** 
+  24:Drivers/FEEPROM/f_eeprom.c **** /* Includes ------------------------------------------------------------------*/
+  25:Drivers/FEEPROM/f_eeprom.c **** #include "f_eeprom.h"
+  26:Drivers/FEEPROM/f_eeprom.c **** 
+  27:Drivers/FEEPROM/f_eeprom.c **** /* Private typedef -----------------------------------------------------------*/
+  28:Drivers/FEEPROM/f_eeprom.c **** /* Private define ------------------------------------------------------------*/
+  29:Drivers/FEEPROM/f_eeprom.c **** /* Private macro -------------------------------------------------------------*/
+  30:Drivers/FEEPROM/f_eeprom.c **** /* Private variables ---------------------------------------------------------*/
+  31:Drivers/FEEPROM/f_eeprom.c **** 
+  32:Drivers/FEEPROM/f_eeprom.c **** /*Variable used for Erase procedure*/
+  33:Drivers/FEEPROM/f_eeprom.c **** static FLASH_EraseInitTypeDef EraseInitStruct;
+  34:Drivers/FEEPROM/f_eeprom.c **** uint32_t PAGEError = 0;
+ARM GAS  /tmp/ccxupRjh.s 			page 2
+
+
+  35:Drivers/FEEPROM/f_eeprom.c **** 
+  36:Drivers/FEEPROM/f_eeprom.c **** /* Global variable used to store variable value in read sequence */
+  37:Drivers/FEEPROM/f_eeprom.c **** uint16_t DataVar = 0;
+  38:Drivers/FEEPROM/f_eeprom.c **** 
+  39:Drivers/FEEPROM/f_eeprom.c **** /* Virtual address defined by the user: 0xFFFF value is prohibited */
+  40:Drivers/FEEPROM/f_eeprom.c **** //extern uint16_t VirtAddVarTab[NumbOfVar];
+  41:Drivers/FEEPROM/f_eeprom.c **** 
+  42:Drivers/FEEPROM/f_eeprom.c **** /* Private function prototypes -----------------------------------------------*/
+  43:Drivers/FEEPROM/f_eeprom.c **** /* Private functions ---------------------------------------------------------*/
+  44:Drivers/FEEPROM/f_eeprom.c **** static uint16_t EE_FindValidPage(uint8_t Operation);
+  45:Drivers/FEEPROM/f_eeprom.c **** static uint16_t EE_VerifyPageFullWriteVariable(uint16_t VirtAddress, uint16_t Data);
+  46:Drivers/FEEPROM/f_eeprom.c **** static uint16_t EE_PageTransfer(uint16_t VirtAddress, uint16_t Data);
+  47:Drivers/FEEPROM/f_eeprom.c **** 
+  48:Drivers/FEEPROM/f_eeprom.c **** /**
+  49:Drivers/FEEPROM/f_eeprom.c ****   * @brief  Restore the pages to a known good state in case of page's status
+  50:Drivers/FEEPROM/f_eeprom.c ****   *   corruption after a power loss.
+  51:Drivers/FEEPROM/f_eeprom.c ****   * @param  None.
+  52:Drivers/FEEPROM/f_eeprom.c ****   * @retval - Flash error code: on write Flash error
+  53:Drivers/FEEPROM/f_eeprom.c ****   *         - HAL_OK: on success
+  54:Drivers/FEEPROM/f_eeprom.c ****   */
+  55:Drivers/FEEPROM/f_eeprom.c **** uint16_t EE_Init(void) {
+  56:Drivers/FEEPROM/f_eeprom.c ****   /* */
+  57:Drivers/FEEPROM/f_eeprom.c ****   uint16_t PageStatus0 = 6, PageStatus1 = 6;
+  58:Drivers/FEEPROM/f_eeprom.c ****   uint16_t VarIdx = 0;
+  59:Drivers/FEEPROM/f_eeprom.c ****   uint16_t EepromStatus = 0, ReadStatus = 0;
+  60:Drivers/FEEPROM/f_eeprom.c ****   int16_t x = -1;
+  61:Drivers/FEEPROM/f_eeprom.c ****   uint16_t  FlashStatus;  
+  62:Drivers/FEEPROM/f_eeprom.c **** 
+  63:Drivers/FEEPROM/f_eeprom.c ****   /* Get Page0 status */
+  64:Drivers/FEEPROM/f_eeprom.c ****   PageStatus0 = (*(__IO uint16_t*)PAGE0_BASE_ADDRESS);
+  65:Drivers/FEEPROM/f_eeprom.c ****   /* Get Page1 status */
+  66:Drivers/FEEPROM/f_eeprom.c ****   PageStatus1 = (*(__IO uint16_t*)PAGE1_BASE_ADDRESS);
+  67:Drivers/FEEPROM/f_eeprom.c **** 
+  68:Drivers/FEEPROM/f_eeprom.c ****   /* Fill EraseInit structure*/
+  69:Drivers/FEEPROM/f_eeprom.c ****   EraseInitStruct.TypeErase   = FLASH_TYPEERASE_PAGES;
+  70:Drivers/FEEPROM/f_eeprom.c ****   EraseInitStruct.PageAddress = PAGE0_BASE_ADDRESS;
+  71:Drivers/FEEPROM/f_eeprom.c ****   EraseInitStruct.NbPages     = 1;
+  72:Drivers/FEEPROM/f_eeprom.c **** 
+  73:Drivers/FEEPROM/f_eeprom.c **** 
+  74:Drivers/FEEPROM/f_eeprom.c ****   /* Check for invalid header states and repair if necessary */
+  75:Drivers/FEEPROM/f_eeprom.c ****   switch (PageStatus0)
+  76:Drivers/FEEPROM/f_eeprom.c ****   {
+  77:Drivers/FEEPROM/f_eeprom.c ****     case ERASED:
+  78:Drivers/FEEPROM/f_eeprom.c ****       if (PageStatus1 == VALID_PAGE) /* Page0 erased, Page1 valid */
+  79:Drivers/FEEPROM/f_eeprom.c ****       {
+  80:Drivers/FEEPROM/f_eeprom.c ****         /* Erase Page0 */        
+  81:Drivers/FEEPROM/f_eeprom.c ****         FlashStatus = HAL_FLASHEx_Erase(&EraseInitStruct, &PAGEError);
+  82:Drivers/FEEPROM/f_eeprom.c **** 
+  83:Drivers/FEEPROM/f_eeprom.c ****         /* If erase operation was failed, a Flash error code is returned */
+  84:Drivers/FEEPROM/f_eeprom.c ****         if (FlashStatus != HAL_OK)
+  85:Drivers/FEEPROM/f_eeprom.c ****         {
+  86:Drivers/FEEPROM/f_eeprom.c ****           return FlashStatus;
+  87:Drivers/FEEPROM/f_eeprom.c ****         }
+  88:Drivers/FEEPROM/f_eeprom.c ****       }
+  89:Drivers/FEEPROM/f_eeprom.c ****       else if (PageStatus1 == RECEIVE_DATA) /* Page0 erased, Page1 receive */
+  90:Drivers/FEEPROM/f_eeprom.c ****       {
+  91:Drivers/FEEPROM/f_eeprom.c ****         /* Erase Page0 */
+ARM GAS  /tmp/ccxupRjh.s 			page 3
+
+
+  92:Drivers/FEEPROM/f_eeprom.c ****         FlashStatus = HAL_FLASHEx_Erase(&EraseInitStruct, &PAGEError);
+  93:Drivers/FEEPROM/f_eeprom.c ****         /* If erase operation was failed, a Flash error code is returned */
+  94:Drivers/FEEPROM/f_eeprom.c ****         if (FlashStatus != HAL_OK)
+  95:Drivers/FEEPROM/f_eeprom.c ****         {
+  96:Drivers/FEEPROM/f_eeprom.c ****           return FlashStatus;
+  97:Drivers/FEEPROM/f_eeprom.c ****         }
+  98:Drivers/FEEPROM/f_eeprom.c ****         /* Mark Page1 as valid */
+  99:Drivers/FEEPROM/f_eeprom.c ****         FlashStatus = HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, PAGE1_BASE_ADDRESS, VALID_PAGE)
+ 100:Drivers/FEEPROM/f_eeprom.c ****         /* If program operation was failed, a Flash error code is returned */
+ 101:Drivers/FEEPROM/f_eeprom.c ****         if (FlashStatus != HAL_OK)
+ 102:Drivers/FEEPROM/f_eeprom.c ****         {
+ 103:Drivers/FEEPROM/f_eeprom.c ****           return FlashStatus;
+ 104:Drivers/FEEPROM/f_eeprom.c ****         }
+ 105:Drivers/FEEPROM/f_eeprom.c ****       }
+ 106:Drivers/FEEPROM/f_eeprom.c ****       else /* First EEPROM access (Page0&1 are erased) or invalid state -> format EEPROM */
+ 107:Drivers/FEEPROM/f_eeprom.c ****       {
+ 108:Drivers/FEEPROM/f_eeprom.c ****         /* Erase both Page0 and Page1 and set Page0 as valid page */
+ 109:Drivers/FEEPROM/f_eeprom.c ****         FlashStatus = EE_Format();
+ 110:Drivers/FEEPROM/f_eeprom.c ****         /* If erase/program operation was failed, a Flash error code is returned */
+ 111:Drivers/FEEPROM/f_eeprom.c ****         if (FlashStatus != HAL_OK)
+ 112:Drivers/FEEPROM/f_eeprom.c ****         {
+ 113:Drivers/FEEPROM/f_eeprom.c ****           return FlashStatus;
+ 114:Drivers/FEEPROM/f_eeprom.c ****         }
+ 115:Drivers/FEEPROM/f_eeprom.c ****       }
+ 116:Drivers/FEEPROM/f_eeprom.c ****       break;
+ 117:Drivers/FEEPROM/f_eeprom.c **** 
+ 118:Drivers/FEEPROM/f_eeprom.c ****     case RECEIVE_DATA:
+ 119:Drivers/FEEPROM/f_eeprom.c ****       if (PageStatus1 == VALID_PAGE) /* Page0 receive, Page1 valid */
+ 120:Drivers/FEEPROM/f_eeprom.c ****       {
+ 121:Drivers/FEEPROM/f_eeprom.c ****         /* Transfer data from Page1 to Page0 */
+ 122:Drivers/FEEPROM/f_eeprom.c ****         for (VarIdx = 0; VarIdx < NumbOfVar; VarIdx++)
+ 123:Drivers/FEEPROM/f_eeprom.c ****         {
+ 124:Drivers/FEEPROM/f_eeprom.c ****           if (( *(__IO uint16_t*)(PAGE0_BASE_ADDRESS + 6)) == VarIdx)
+ 125:Drivers/FEEPROM/f_eeprom.c ****           {
+ 126:Drivers/FEEPROM/f_eeprom.c ****             x = VarIdx;
+ 127:Drivers/FEEPROM/f_eeprom.c ****           }
+ 128:Drivers/FEEPROM/f_eeprom.c ****           if (VarIdx != x)
+ 129:Drivers/FEEPROM/f_eeprom.c ****           {
+ 130:Drivers/FEEPROM/f_eeprom.c ****             /* Read the last variables' updates */
+ 131:Drivers/FEEPROM/f_eeprom.c ****             ReadStatus = EE_ReadVariable(VarIdx, &DataVar);
+ 132:Drivers/FEEPROM/f_eeprom.c ****             /* In case variable corresponding to the virtual address was found */
+ 133:Drivers/FEEPROM/f_eeprom.c ****             if (ReadStatus != 0x1)
+ 134:Drivers/FEEPROM/f_eeprom.c ****             {
+ 135:Drivers/FEEPROM/f_eeprom.c ****               /* Transfer the variable to the Page0 */
+ 136:Drivers/FEEPROM/f_eeprom.c ****               EepromStatus = EE_VerifyPageFullWriteVariable(VarIdx, DataVar);
+ 137:Drivers/FEEPROM/f_eeprom.c ****               /* If program operation was failed, a Flash error code is returned */
+ 138:Drivers/FEEPROM/f_eeprom.c ****               if (EepromStatus != HAL_OK)
+ 139:Drivers/FEEPROM/f_eeprom.c ****               {
+ 140:Drivers/FEEPROM/f_eeprom.c ****                 return EepromStatus;
+ 141:Drivers/FEEPROM/f_eeprom.c ****               }
+ 142:Drivers/FEEPROM/f_eeprom.c ****             }
+ 143:Drivers/FEEPROM/f_eeprom.c ****           }
+ 144:Drivers/FEEPROM/f_eeprom.c ****         }
+ 145:Drivers/FEEPROM/f_eeprom.c ****         /* Mark Page0 as valid */
+ 146:Drivers/FEEPROM/f_eeprom.c ****         FlashStatus = HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, PAGE0_BASE_ADDRESS, VALID_PAGE)
+ 147:Drivers/FEEPROM/f_eeprom.c **** 
+ 148:Drivers/FEEPROM/f_eeprom.c ****         /* If program operation was failed, a Flash error code is returned */
+ARM GAS  /tmp/ccxupRjh.s 			page 4
+
+
+ 149:Drivers/FEEPROM/f_eeprom.c ****         if (FlashStatus != HAL_OK)
+ 150:Drivers/FEEPROM/f_eeprom.c ****         {
+ 151:Drivers/FEEPROM/f_eeprom.c ****           return FlashStatus;
+ 152:Drivers/FEEPROM/f_eeprom.c ****         }
+ 153:Drivers/FEEPROM/f_eeprom.c ****         /* Erase Page1 */        
+ 154:Drivers/FEEPROM/f_eeprom.c ****         EraseInitStruct.PageAddress = PAGE1_BASE_ADDRESS;        
+ 155:Drivers/FEEPROM/f_eeprom.c ****         FlashStatus = HAL_FLASHEx_Erase(&EraseInitStruct, &PAGEError);
+ 156:Drivers/FEEPROM/f_eeprom.c ****         /* If erase operation was failed, a Flash error code is returned */
+ 157:Drivers/FEEPROM/f_eeprom.c ****         if (FlashStatus != HAL_OK)
+ 158:Drivers/FEEPROM/f_eeprom.c ****         {
+ 159:Drivers/FEEPROM/f_eeprom.c ****           return FlashStatus;
+ 160:Drivers/FEEPROM/f_eeprom.c ****         }
+ 161:Drivers/FEEPROM/f_eeprom.c ****       }
+ 162:Drivers/FEEPROM/f_eeprom.c ****       else if (PageStatus1 == ERASED) /* Page0 receive, Page1 erased */
+ 163:Drivers/FEEPROM/f_eeprom.c ****       {
+ 164:Drivers/FEEPROM/f_eeprom.c ****         /* Erase Page1 */
+ 165:Drivers/FEEPROM/f_eeprom.c ****         EraseInitStruct.PageAddress = PAGE1_BASE_ADDRESS; 
+ 166:Drivers/FEEPROM/f_eeprom.c ****         FlashStatus = HAL_FLASHEx_Erase(&EraseInitStruct, &PAGEError);
+ 167:Drivers/FEEPROM/f_eeprom.c ****         /* If erase operation was failed, a Flash error code is returned */
+ 168:Drivers/FEEPROM/f_eeprom.c ****         if (FlashStatus != HAL_OK)
+ 169:Drivers/FEEPROM/f_eeprom.c ****         {
+ 170:Drivers/FEEPROM/f_eeprom.c ****           return FlashStatus;
+ 171:Drivers/FEEPROM/f_eeprom.c ****         }
+ 172:Drivers/FEEPROM/f_eeprom.c ****         /* Mark Page0 as valid */
+ 173:Drivers/FEEPROM/f_eeprom.c ****         FlashStatus = HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, PAGE0_BASE_ADDRESS, VALID_PAGE)
+ 174:Drivers/FEEPROM/f_eeprom.c ****         /* If program operation was failed, a Flash error code is returned */
+ 175:Drivers/FEEPROM/f_eeprom.c ****         if (FlashStatus != HAL_OK)
+ 176:Drivers/FEEPROM/f_eeprom.c ****         {
+ 177:Drivers/FEEPROM/f_eeprom.c ****           return FlashStatus;
+ 178:Drivers/FEEPROM/f_eeprom.c ****         }
+ 179:Drivers/FEEPROM/f_eeprom.c ****       }
+ 180:Drivers/FEEPROM/f_eeprom.c ****       else /* Invalid state -> format eeprom */
+ 181:Drivers/FEEPROM/f_eeprom.c ****       {
+ 182:Drivers/FEEPROM/f_eeprom.c ****         /* Erase both Page0 and Page1 and set Page0 as valid page */
+ 183:Drivers/FEEPROM/f_eeprom.c ****         FlashStatus = EE_Format();
+ 184:Drivers/FEEPROM/f_eeprom.c ****         /* If erase/program operation was failed, a Flash error code is returned */
+ 185:Drivers/FEEPROM/f_eeprom.c ****         if (FlashStatus != HAL_OK)
+ 186:Drivers/FEEPROM/f_eeprom.c ****         {
+ 187:Drivers/FEEPROM/f_eeprom.c ****           return FlashStatus;
+ 188:Drivers/FEEPROM/f_eeprom.c ****         }
+ 189:Drivers/FEEPROM/f_eeprom.c ****       }
+ 190:Drivers/FEEPROM/f_eeprom.c ****       break;
+ 191:Drivers/FEEPROM/f_eeprom.c **** 
+ 192:Drivers/FEEPROM/f_eeprom.c ****     case VALID_PAGE:
+ 193:Drivers/FEEPROM/f_eeprom.c ****       if (PageStatus1 == VALID_PAGE) /* Invalid state -> format eeprom */
+ 194:Drivers/FEEPROM/f_eeprom.c ****       {
+ 195:Drivers/FEEPROM/f_eeprom.c ****         /* Erase both Page0 and Page1 and set Page0 as valid page */
+ 196:Drivers/FEEPROM/f_eeprom.c ****         FlashStatus = EE_Format();
+ 197:Drivers/FEEPROM/f_eeprom.c ****         /* If erase/program operation was failed, a Flash error code is returned */
+ 198:Drivers/FEEPROM/f_eeprom.c ****         if (FlashStatus != HAL_OK)
+ 199:Drivers/FEEPROM/f_eeprom.c ****         {
+ 200:Drivers/FEEPROM/f_eeprom.c ****           return FlashStatus;
+ 201:Drivers/FEEPROM/f_eeprom.c ****         }
+ 202:Drivers/FEEPROM/f_eeprom.c ****       }
+ 203:Drivers/FEEPROM/f_eeprom.c ****       else if (PageStatus1 == ERASED) /* Page0 valid, Page1 erased */
+ 204:Drivers/FEEPROM/f_eeprom.c ****       {
+ 205:Drivers/FEEPROM/f_eeprom.c ****         /* Erase Page1 */
+ARM GAS  /tmp/ccxupRjh.s 			page 5
+
+
+ 206:Drivers/FEEPROM/f_eeprom.c ****         EraseInitStruct.PageAddress = PAGE1_BASE_ADDRESS; 
+ 207:Drivers/FEEPROM/f_eeprom.c ****         FlashStatus = HAL_FLASHEx_Erase(&EraseInitStruct, &PAGEError);
+ 208:Drivers/FEEPROM/f_eeprom.c ****         /* If erase operation was failed, a Flash error code is returned */
+ 209:Drivers/FEEPROM/f_eeprom.c ****         if (FlashStatus != HAL_OK)
+ 210:Drivers/FEEPROM/f_eeprom.c ****         {
+ 211:Drivers/FEEPROM/f_eeprom.c ****           return FlashStatus;
+ 212:Drivers/FEEPROM/f_eeprom.c ****         }
+ 213:Drivers/FEEPROM/f_eeprom.c ****       }
+ 214:Drivers/FEEPROM/f_eeprom.c ****       else /* Page0 valid, Page1 receive */
+ 215:Drivers/FEEPROM/f_eeprom.c ****       {
+ 216:Drivers/FEEPROM/f_eeprom.c ****         /* Transfer data from Page0 to Page1 */
+ 217:Drivers/FEEPROM/f_eeprom.c ****         for (VarIdx = 0; VarIdx < NumbOfVar; VarIdx++)
+ 218:Drivers/FEEPROM/f_eeprom.c ****         {
+ 219:Drivers/FEEPROM/f_eeprom.c ****           if ((*(__IO uint16_t*)(PAGE1_BASE_ADDRESS + 6)) == VarIdx)
+ 220:Drivers/FEEPROM/f_eeprom.c ****           {
+ 221:Drivers/FEEPROM/f_eeprom.c ****             x = VarIdx;
+ 222:Drivers/FEEPROM/f_eeprom.c ****           }
+ 223:Drivers/FEEPROM/f_eeprom.c ****           if (VarIdx != x)
+ 224:Drivers/FEEPROM/f_eeprom.c ****           {
+ 225:Drivers/FEEPROM/f_eeprom.c ****             /* Read the last variables' updates */
+ 226:Drivers/FEEPROM/f_eeprom.c ****             ReadStatus = EE_ReadVariable(VarIdx, &DataVar);
+ 227:Drivers/FEEPROM/f_eeprom.c ****             /* In case variable corresponding to the virtual address was found */
+ 228:Drivers/FEEPROM/f_eeprom.c ****             if (ReadStatus != 0x1)
+ 229:Drivers/FEEPROM/f_eeprom.c ****             {
+ 230:Drivers/FEEPROM/f_eeprom.c ****               /* Transfer the variable to the Page1 */
+ 231:Drivers/FEEPROM/f_eeprom.c ****               EepromStatus = EE_VerifyPageFullWriteVariable(VarIdx, DataVar);
+ 232:Drivers/FEEPROM/f_eeprom.c ****               /* If program operation was failed, a Flash error code is returned */
+ 233:Drivers/FEEPROM/f_eeprom.c ****               if (EepromStatus != HAL_OK)
+ 234:Drivers/FEEPROM/f_eeprom.c ****               {
+ 235:Drivers/FEEPROM/f_eeprom.c ****                 return EepromStatus;
+ 236:Drivers/FEEPROM/f_eeprom.c ****               }
+ 237:Drivers/FEEPROM/f_eeprom.c ****             }
+ 238:Drivers/FEEPROM/f_eeprom.c ****           }
+ 239:Drivers/FEEPROM/f_eeprom.c ****         }
+ 240:Drivers/FEEPROM/f_eeprom.c ****         /* Mark Page1 as valid */
+ 241:Drivers/FEEPROM/f_eeprom.c ****         FlashStatus = HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, PAGE1_BASE_ADDRESS, VALID_PAGE)
+ 242:Drivers/FEEPROM/f_eeprom.c ****         /* If program operation was failed, a Flash error code is returned */
+ 243:Drivers/FEEPROM/f_eeprom.c ****         if (FlashStatus != HAL_OK)
+ 244:Drivers/FEEPROM/f_eeprom.c ****         {
+ 245:Drivers/FEEPROM/f_eeprom.c ****           return FlashStatus;
+ 246:Drivers/FEEPROM/f_eeprom.c ****         }
+ 247:Drivers/FEEPROM/f_eeprom.c ****         /* Erase Page0 */        
+ 248:Drivers/FEEPROM/f_eeprom.c ****         FlashStatus = HAL_FLASHEx_Erase(&EraseInitStruct, &PAGEError);
+ 249:Drivers/FEEPROM/f_eeprom.c ****         /* If erase operation was failed, a Flash error code is returned */
+ 250:Drivers/FEEPROM/f_eeprom.c ****         if (FlashStatus != HAL_OK)
+ 251:Drivers/FEEPROM/f_eeprom.c ****         {
+ 252:Drivers/FEEPROM/f_eeprom.c ****           return FlashStatus;
+ 253:Drivers/FEEPROM/f_eeprom.c ****         }
+ 254:Drivers/FEEPROM/f_eeprom.c ****       }
+ 255:Drivers/FEEPROM/f_eeprom.c ****       break;
+ 256:Drivers/FEEPROM/f_eeprom.c **** 
+ 257:Drivers/FEEPROM/f_eeprom.c ****     default:  /* Any other state -> format eeprom */
+ 258:Drivers/FEEPROM/f_eeprom.c ****       /* Erase both Page0 and Page1 and set Page0 as valid page */
+ 259:Drivers/FEEPROM/f_eeprom.c ****       FlashStatus = EE_Format();
+ 260:Drivers/FEEPROM/f_eeprom.c ****       /* If erase/program operation was failed, a Flash error code is returned */
+ 261:Drivers/FEEPROM/f_eeprom.c ****       if (FlashStatus != HAL_OK)
+ 262:Drivers/FEEPROM/f_eeprom.c ****       {
+ARM GAS  /tmp/ccxupRjh.s 			page 6
+
+
+ 263:Drivers/FEEPROM/f_eeprom.c ****         return FlashStatus;
+ 264:Drivers/FEEPROM/f_eeprom.c ****       }
+ 265:Drivers/FEEPROM/f_eeprom.c ****       break;
+ 266:Drivers/FEEPROM/f_eeprom.c ****   }
+ 267:Drivers/FEEPROM/f_eeprom.c **** 
+ 268:Drivers/FEEPROM/f_eeprom.c ****   return HAL_OK;
+ 269:Drivers/FEEPROM/f_eeprom.c **** }
+ 270:Drivers/FEEPROM/f_eeprom.c **** 
+ 271:Drivers/FEEPROM/f_eeprom.c **** 
+ 272:Drivers/FEEPROM/f_eeprom.c **** /**
+ 273:Drivers/FEEPROM/f_eeprom.c ****   * @brief  Returns the last stored variable data, if found, which correspond to
+ 274:Drivers/FEEPROM/f_eeprom.c ****   *   the passed virtual address
+ 275:Drivers/FEEPROM/f_eeprom.c ****   * @param  VirtAddress: Variable virtual address
+ 276:Drivers/FEEPROM/f_eeprom.c ****   * @param  Data: Global variable contains the read variable value
+ 277:Drivers/FEEPROM/f_eeprom.c ****   * @retval Success or error status:
+ 278:Drivers/FEEPROM/f_eeprom.c ****   *           - 0: if variable was found
+ 279:Drivers/FEEPROM/f_eeprom.c ****   *           - 1: if the variable was not found
+ 280:Drivers/FEEPROM/f_eeprom.c ****   *           - NO_VALID_PAGE: if no valid page was found.
+ 281:Drivers/FEEPROM/f_eeprom.c ****   */
+ 282:Drivers/FEEPROM/f_eeprom.c **** uint16_t EE_ReadVariable(uint16_t VirtAddress, uint16_t* Data)
+ 283:Drivers/FEEPROM/f_eeprom.c **** {
+ 284:Drivers/FEEPROM/f_eeprom.c ****   uint16_t ValidPage = PAGE0;
+ 285:Drivers/FEEPROM/f_eeprom.c ****   uint16_t AddressValue = 0x0000, ReadStatus = 1;
+ 286:Drivers/FEEPROM/f_eeprom.c ****   uint32_t Address = 0x0803E000, PageStartAddress = 0x0803E000;
+ 287:Drivers/FEEPROM/f_eeprom.c **** 
+ 288:Drivers/FEEPROM/f_eeprom.c ****   /* Get active Page for read operation */
+ 289:Drivers/FEEPROM/f_eeprom.c ****   ValidPage = EE_FindValidPage(READ_FROM_VALID_PAGE);
+ 290:Drivers/FEEPROM/f_eeprom.c **** 
+ 291:Drivers/FEEPROM/f_eeprom.c ****   /* Check if there is no valid page */
+ 292:Drivers/FEEPROM/f_eeprom.c ****   if (ValidPage == NO_VALID_PAGE)
+ 293:Drivers/FEEPROM/f_eeprom.c ****   {
+ 294:Drivers/FEEPROM/f_eeprom.c ****     return  NO_VALID_PAGE;
+ 295:Drivers/FEEPROM/f_eeprom.c ****   }
+ 296:Drivers/FEEPROM/f_eeprom.c **** 
+ 297:Drivers/FEEPROM/f_eeprom.c ****   /* Get the valid Page start Address */
+ 298:Drivers/FEEPROM/f_eeprom.c ****   PageStartAddress = (uint32_t)(EEPROM_START_ADDRESS + (uint32_t)(ValidPage * PAGE_SIZE));
+ 299:Drivers/FEEPROM/f_eeprom.c **** 
+ 300:Drivers/FEEPROM/f_eeprom.c ****   /* Get the valid Page end Address */
+ 301:Drivers/FEEPROM/f_eeprom.c ****   Address = (uint32_t)((EEPROM_START_ADDRESS - 2) + (uint32_t)((1 + ValidPage) * PAGE_SIZE));
+ 302:Drivers/FEEPROM/f_eeprom.c **** 
+ 303:Drivers/FEEPROM/f_eeprom.c ****   /* Check each active page address starting from end */
+ 304:Drivers/FEEPROM/f_eeprom.c ****   while (Address > (PageStartAddress + 2))
+ 305:Drivers/FEEPROM/f_eeprom.c ****   {
+ 306:Drivers/FEEPROM/f_eeprom.c ****     /* Get the current location content to be compared with virtual address */
+ 307:Drivers/FEEPROM/f_eeprom.c ****     AddressValue = (*(__IO uint16_t*)Address);
+ 308:Drivers/FEEPROM/f_eeprom.c **** 
+ 309:Drivers/FEEPROM/f_eeprom.c ****     /* Compare the read address with the virtual address */
+ 310:Drivers/FEEPROM/f_eeprom.c ****     if (AddressValue == VirtAddress)
+ 311:Drivers/FEEPROM/f_eeprom.c ****     {
+ 312:Drivers/FEEPROM/f_eeprom.c ****       /* Get content of Address-2 which is variable value */
+ 313:Drivers/FEEPROM/f_eeprom.c ****       *Data = (*(__IO uint16_t*)(Address - 2));
+ 314:Drivers/FEEPROM/f_eeprom.c **** 
+ 315:Drivers/FEEPROM/f_eeprom.c ****       /* In case variable value is read, reset ReadStatus flag */
+ 316:Drivers/FEEPROM/f_eeprom.c ****       ReadStatus = 0;
+ 317:Drivers/FEEPROM/f_eeprom.c **** 
+ 318:Drivers/FEEPROM/f_eeprom.c ****       break;
+ 319:Drivers/FEEPROM/f_eeprom.c ****     }
+ARM GAS  /tmp/ccxupRjh.s 			page 7
+
+
+ 320:Drivers/FEEPROM/f_eeprom.c ****     else
+ 321:Drivers/FEEPROM/f_eeprom.c ****     {
+ 322:Drivers/FEEPROM/f_eeprom.c ****       /* Next address location */
+ 323:Drivers/FEEPROM/f_eeprom.c ****       Address = Address - 4;
+ 324:Drivers/FEEPROM/f_eeprom.c ****     }
+ 325:Drivers/FEEPROM/f_eeprom.c ****   }
+ 326:Drivers/FEEPROM/f_eeprom.c **** 
+ 327:Drivers/FEEPROM/f_eeprom.c ****   /* Return ReadStatus value: (0: variable exist, 1: variable doesn't exist) */
+ 328:Drivers/FEEPROM/f_eeprom.c ****   return ReadStatus;
+ 329:Drivers/FEEPROM/f_eeprom.c **** }
+ 330:Drivers/FEEPROM/f_eeprom.c **** 
+ 331:Drivers/FEEPROM/f_eeprom.c **** /**
+ 332:Drivers/FEEPROM/f_eeprom.c ****   * @brief  Writes/upadtes variable data in EEPROM.
+ 333:Drivers/FEEPROM/f_eeprom.c ****   * @param  VirtAddress: Variable virtual address
+ 334:Drivers/FEEPROM/f_eeprom.c ****   * @param  Data: 16 bit data to be written
+ 335:Drivers/FEEPROM/f_eeprom.c ****   * @retval Success or error status:
+ 336:Drivers/FEEPROM/f_eeprom.c ****   *           - HAL_OK: on success
+ 337:Drivers/FEEPROM/f_eeprom.c ****   *           - PAGE_FULL: if valid page is full
+ 338:Drivers/FEEPROM/f_eeprom.c ****   *           - NO_VALID_PAGE: if no valid page was found
+ 339:Drivers/FEEPROM/f_eeprom.c ****   *           - Flash error code: on write Flash error
+ 340:Drivers/FEEPROM/f_eeprom.c ****   */
+ 341:Drivers/FEEPROM/f_eeprom.c **** uint16_t EE_WriteVariable(uint16_t VirtAddress, uint16_t Data)
+ 342:Drivers/FEEPROM/f_eeprom.c **** {
+ 343:Drivers/FEEPROM/f_eeprom.c ****   uint16_t Status = 0;
+ 344:Drivers/FEEPROM/f_eeprom.c **** 
+ 345:Drivers/FEEPROM/f_eeprom.c ****   /* Write the variable virtual address and value in the EEPROM */
+ 346:Drivers/FEEPROM/f_eeprom.c ****   Status = EE_VerifyPageFullWriteVariable(VirtAddress, Data);
+ 347:Drivers/FEEPROM/f_eeprom.c **** 
+ 348:Drivers/FEEPROM/f_eeprom.c ****   /* In case the EEPROM active page is full */
+ 349:Drivers/FEEPROM/f_eeprom.c ****   if (Status == PAGE_FULL)
+ 350:Drivers/FEEPROM/f_eeprom.c ****   {
+ 351:Drivers/FEEPROM/f_eeprom.c ****     /* Perform Page transfer */
+ 352:Drivers/FEEPROM/f_eeprom.c ****     Status = EE_PageTransfer(VirtAddress, Data);
+ 353:Drivers/FEEPROM/f_eeprom.c ****   }
+ 354:Drivers/FEEPROM/f_eeprom.c **** 
+ 355:Drivers/FEEPROM/f_eeprom.c ****   /* Return last operation status */
+ 356:Drivers/FEEPROM/f_eeprom.c ****   return Status;
+ 357:Drivers/FEEPROM/f_eeprom.c **** }
+ 358:Drivers/FEEPROM/f_eeprom.c **** 
+ 359:Drivers/FEEPROM/f_eeprom.c **** /**
+ 360:Drivers/FEEPROM/f_eeprom.c ****   * @brief  Erases PAGE0 and PAGE1 and writes VALID_PAGE header to PAGE0
+ 361:Drivers/FEEPROM/f_eeprom.c ****   * @param  None
+ 362:Drivers/FEEPROM/f_eeprom.c ****   * @retval Status of the last operation (Flash write or erase) done during
+ 363:Drivers/FEEPROM/f_eeprom.c ****   *         EEPROM formating
+ 364:Drivers/FEEPROM/f_eeprom.c ****   */
+ 365:Drivers/FEEPROM/f_eeprom.c **** HAL_StatusTypeDef EE_Format(void)
+ 366:Drivers/FEEPROM/f_eeprom.c **** {
+ 367:Drivers/FEEPROM/f_eeprom.c **** 	HAL_StatusTypeDef FlashStatus = HAL_OK;
+ 368:Drivers/FEEPROM/f_eeprom.c **** 
+ 369:Drivers/FEEPROM/f_eeprom.c **** 	/* Erase Page0 */
+ 370:Drivers/FEEPROM/f_eeprom.c ****   EraseInitStruct.PageAddress = PAGE0_BASE_ADDRESS; 
+ 371:Drivers/FEEPROM/f_eeprom.c **** 	FlashStatus = HAL_FLASHEx_Erase(&EraseInitStruct, &PAGEError);
+ 372:Drivers/FEEPROM/f_eeprom.c **** 
+ 373:Drivers/FEEPROM/f_eeprom.c **** 	/* If erase operation was failed, a Flash error code is returned */
+ 374:Drivers/FEEPROM/f_eeprom.c **** 	if (FlashStatus != HAL_OK) {
+ 375:Drivers/FEEPROM/f_eeprom.c ****   		return FlashStatus;
+ 376:Drivers/FEEPROM/f_eeprom.c **** 	}
+ARM GAS  /tmp/ccxupRjh.s 			page 8
+
+
+ 377:Drivers/FEEPROM/f_eeprom.c **** 
+ 378:Drivers/FEEPROM/f_eeprom.c **** 	/* Set Page0 as valid page: Write VALID_PAGE at Page0 base address */
+ 379:Drivers/FEEPROM/f_eeprom.c **** 	FlashStatus = HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, PAGE0_BASE_ADDRESS, VALID_PAGE);
+ 380:Drivers/FEEPROM/f_eeprom.c **** 
+ 381:Drivers/FEEPROM/f_eeprom.c **** 	/* If program operation was failed, a Flash error code is returned */
+ 382:Drivers/FEEPROM/f_eeprom.c **** 	if (FlashStatus != HAL_OK) {
+ 383:Drivers/FEEPROM/f_eeprom.c ****   		return FlashStatus;
+ 384:Drivers/FEEPROM/f_eeprom.c **** 	}
+ 385:Drivers/FEEPROM/f_eeprom.c **** 
+ 386:Drivers/FEEPROM/f_eeprom.c **** 	/* Erase Page1 */
+ 387:Drivers/FEEPROM/f_eeprom.c ****   EraseInitStruct.PageAddress = PAGE1_BASE_ADDRESS; 
+ 388:Drivers/FEEPROM/f_eeprom.c **** 	FlashStatus = HAL_FLASHEx_Erase(&EraseInitStruct, &PAGEError);
+ 389:Drivers/FEEPROM/f_eeprom.c **** 
+ 390:Drivers/FEEPROM/f_eeprom.c **** 	/* Return Page1 erase operation status */
+ 391:Drivers/FEEPROM/f_eeprom.c **** 	return FlashStatus;
+ 392:Drivers/FEEPROM/f_eeprom.c **** }
+ 393:Drivers/FEEPROM/f_eeprom.c **** 
+ 394:Drivers/FEEPROM/f_eeprom.c **** /**
+ 395:Drivers/FEEPROM/f_eeprom.c ****   * @brief  Find valid Page for write or read operation
+ 396:Drivers/FEEPROM/f_eeprom.c ****   * @param  Operation: operation to achieve on the valid page.
+ 397:Drivers/FEEPROM/f_eeprom.c ****   *   This parameter can be one of the following values:
+ 398:Drivers/FEEPROM/f_eeprom.c ****   *     @arg READ_FROM_VALID_PAGE: read operation from valid page
+ 399:Drivers/FEEPROM/f_eeprom.c ****   *     @arg WRITE_IN_VALID_PAGE: write operation from valid page
+ 400:Drivers/FEEPROM/f_eeprom.c ****   * @retval Valid page number (PAGE0 or PAGE1) or NO_VALID_PAGE in case
+ 401:Drivers/FEEPROM/f_eeprom.c ****   *   of no valid page was found
+ 402:Drivers/FEEPROM/f_eeprom.c ****   */
+ 403:Drivers/FEEPROM/f_eeprom.c **** static uint16_t EE_FindValidPage(uint8_t Operation)
+ 404:Drivers/FEEPROM/f_eeprom.c **** {
+  25              		.loc 1 404 0
+  26              		.cfi_startproc
+  27              		@ args = 0, pretend = 0, frame = 0
+  28              		@ frame_needed = 0, uses_anonymous_args = 0
+  29              		@ link register save eliminated.
+  30              	.LVL0:
+ 405:Drivers/FEEPROM/f_eeprom.c ****   uint16_t PageStatus0 = 6, PageStatus1 = 6;
+ 406:Drivers/FEEPROM/f_eeprom.c **** 
+ 407:Drivers/FEEPROM/f_eeprom.c ****   /* Get Page0 actual status */
+ 408:Drivers/FEEPROM/f_eeprom.c ****   PageStatus0 = (*(__IO uint16_t*)PAGE0_BASE_ADDRESS);
+  31              		.loc 1 408 0
+  32 0000 114B     		ldr	r3, .L12
+  33 0002 1B88     		ldrh	r3, [r3]
+  34 0004 9BB2     		uxth	r3, r3
+  35              	.LVL1:
+ 409:Drivers/FEEPROM/f_eeprom.c **** 
+ 410:Drivers/FEEPROM/f_eeprom.c ****   /* Get Page1 actual status */
+ 411:Drivers/FEEPROM/f_eeprom.c ****   PageStatus1 = (*(__IO uint16_t*)PAGE1_BASE_ADDRESS);
+  36              		.loc 1 411 0
+  37 0006 114A     		ldr	r2, .L12+4
+  38 0008 1288     		ldrh	r2, [r2]
+  39 000a 92B2     		uxth	r2, r2
+  40              	.LVL2:
+ 412:Drivers/FEEPROM/f_eeprom.c **** 
+ 413:Drivers/FEEPROM/f_eeprom.c ****   /* Write or read operation */
+ 414:Drivers/FEEPROM/f_eeprom.c ****   switch (Operation)
+  41              		.loc 1 414 0
+  42 000c 88B1     		cbz	r0, .L3
+  43 000e 0128     		cmp	r0, #1
+ARM GAS  /tmp/ccxupRjh.s 			page 9
+
+
+  44 0010 13D1     		bne	.L10
+ 415:Drivers/FEEPROM/f_eeprom.c ****   {
+ 416:Drivers/FEEPROM/f_eeprom.c ****     case WRITE_IN_VALID_PAGE:   /* ---- Write operation ---- */
+ 417:Drivers/FEEPROM/f_eeprom.c ****       if (PageStatus1 == VALID_PAGE)
+  45              		.loc 1 417 0
+  46 0012 3AB9     		cbnz	r2, .L5
+ 418:Drivers/FEEPROM/f_eeprom.c ****       {
+ 419:Drivers/FEEPROM/f_eeprom.c ****         /* Page0 receiving data */
+ 420:Drivers/FEEPROM/f_eeprom.c ****         if (PageStatus0 == RECEIVE_DATA)
+  47              		.loc 1 420 0
+  48 0014 4EF6EE61 		movw	r1, #61166
+  49 0018 8B42     		cmp	r3, r1
+  50 001a 01D0     		beq	.L11
+ 421:Drivers/FEEPROM/f_eeprom.c ****         {
+ 422:Drivers/FEEPROM/f_eeprom.c ****           return PAGE0;         /* Page0 valid */
+ 423:Drivers/FEEPROM/f_eeprom.c ****         }
+ 424:Drivers/FEEPROM/f_eeprom.c ****         else
+ 425:Drivers/FEEPROM/f_eeprom.c ****         {
+ 426:Drivers/FEEPROM/f_eeprom.c ****           return PAGE1;         /* Page1 valid */
+  51              		.loc 1 426 0
+  52 001c 0123     		movs	r3, #1
+  53              	.LVL3:
+  54 001e 0DE0     		b	.L2
+  55              	.LVL4:
+  56              	.L11:
+ 422:Drivers/FEEPROM/f_eeprom.c ****         }
+  57              		.loc 1 422 0
+  58 0020 1346     		mov	r3, r2
+  59              	.LVL5:
+  60 0022 0BE0     		b	.L2
+  61              	.LVL6:
+  62              	.L5:
+ 427:Drivers/FEEPROM/f_eeprom.c ****         }
+ 428:Drivers/FEEPROM/f_eeprom.c ****       }
+ 429:Drivers/FEEPROM/f_eeprom.c ****       else if (PageStatus0 == VALID_PAGE)
+  63              		.loc 1 429 0
+  64 0024 63B9     		cbnz	r3, .L8
+ 430:Drivers/FEEPROM/f_eeprom.c ****       {
+ 431:Drivers/FEEPROM/f_eeprom.c ****         /* Page1 receiving data */
+ 432:Drivers/FEEPROM/f_eeprom.c ****         if (PageStatus1 == RECEIVE_DATA)
+  65              		.loc 1 432 0
+  66 0026 4EF6EE61 		movw	r1, #61166
+  67 002a 8A42     		cmp	r2, r1
+  68 002c 06D1     		bne	.L2
+ 433:Drivers/FEEPROM/f_eeprom.c ****         {
+ 434:Drivers/FEEPROM/f_eeprom.c ****           return PAGE1;         /* Page1 valid */
+  69              		.loc 1 434 0
+  70 002e 0123     		movs	r3, #1
+  71              	.LVL7:
+  72 0030 04E0     		b	.L2
+  73              	.LVL8:
+  74              	.L3:
+ 435:Drivers/FEEPROM/f_eeprom.c ****         }
+ 436:Drivers/FEEPROM/f_eeprom.c ****         else
+ 437:Drivers/FEEPROM/f_eeprom.c ****         {
+ 438:Drivers/FEEPROM/f_eeprom.c ****           return PAGE0;         /* Page0 valid */
+ 439:Drivers/FEEPROM/f_eeprom.c ****         }
+ARM GAS  /tmp/ccxupRjh.s 			page 10
+
+
+ 440:Drivers/FEEPROM/f_eeprom.c ****       }
+ 441:Drivers/FEEPROM/f_eeprom.c ****       else
+ 442:Drivers/FEEPROM/f_eeprom.c ****       {
+ 443:Drivers/FEEPROM/f_eeprom.c ****         return NO_VALID_PAGE;   /* No valid Page */
+ 444:Drivers/FEEPROM/f_eeprom.c ****       }
+ 445:Drivers/FEEPROM/f_eeprom.c **** 
+ 446:Drivers/FEEPROM/f_eeprom.c ****     case READ_FROM_VALID_PAGE:  /* ---- Read operation ---- */
+ 447:Drivers/FEEPROM/f_eeprom.c ****       if (PageStatus0 == VALID_PAGE)
+  75              		.loc 1 447 0
+  76 0032 1BB1     		cbz	r3, .L2
+ 448:Drivers/FEEPROM/f_eeprom.c ****       {
+ 449:Drivers/FEEPROM/f_eeprom.c ****         return PAGE0;           /* Page0 valid */
+ 450:Drivers/FEEPROM/f_eeprom.c ****       }
+ 451:Drivers/FEEPROM/f_eeprom.c ****       else if (PageStatus1 == VALID_PAGE)
+  77              		.loc 1 451 0
+  78 0034 32B9     		cbnz	r2, .L9
+ 452:Drivers/FEEPROM/f_eeprom.c ****       {
+ 453:Drivers/FEEPROM/f_eeprom.c ****         return PAGE1;           /* Page1 valid */
+  79              		.loc 1 453 0
+  80 0036 0123     		movs	r3, #1
+  81              	.LVL9:
+  82 0038 00E0     		b	.L2
+  83              	.LVL10:
+  84              	.L10:
+ 454:Drivers/FEEPROM/f_eeprom.c ****       }
+ 455:Drivers/FEEPROM/f_eeprom.c ****       else
+ 456:Drivers/FEEPROM/f_eeprom.c ****       {
+ 457:Drivers/FEEPROM/f_eeprom.c ****         return NO_VALID_PAGE ;  /* No valid Page */
+ 458:Drivers/FEEPROM/f_eeprom.c ****       }
+ 459:Drivers/FEEPROM/f_eeprom.c **** 
+ 460:Drivers/FEEPROM/f_eeprom.c ****     default:
+ 461:Drivers/FEEPROM/f_eeprom.c ****       return PAGE0;             /* Page0 valid */
+  85              		.loc 1 461 0
+  86 003a 0023     		movs	r3, #0
+  87              	.LVL11:
+  88              	.L2:
+ 462:Drivers/FEEPROM/f_eeprom.c ****   }
+ 463:Drivers/FEEPROM/f_eeprom.c **** }
+  89              		.loc 1 463 0
+  90 003c 1846     		mov	r0, r3
+  91              	.LVL12:
+  92 003e 7047     		bx	lr
+  93              	.LVL13:
+  94              	.L8:
+ 443:Drivers/FEEPROM/f_eeprom.c ****       }
+  95              		.loc 1 443 0
+  96 0040 AB23     		movs	r3, #171
+  97              	.LVL14:
+  98 0042 FBE7     		b	.L2
+  99              	.LVL15:
+ 100              	.L9:
+ 457:Drivers/FEEPROM/f_eeprom.c ****       }
+ 101              		.loc 1 457 0
+ 102 0044 AB23     		movs	r3, #171
+ 103              	.LVL16:
+ 104 0046 F9E7     		b	.L2
+ 105              	.L13:
+ARM GAS  /tmp/ccxupRjh.s 			page 11
+
+
+ 106              		.align	2
+ 107              	.L12:
+ 108 0048 00E80308 		.word	134473728
+ 109 004c 00F00308 		.word	134475776
+ 110              		.cfi_endproc
+ 111              	.LFE70:
+ 113              		.section	.text.EE_VerifyPageFullWriteVariable,"ax",%progbits
+ 114              		.align	1
+ 115              		.syntax unified
+ 116              		.thumb
+ 117              		.thumb_func
+ 118              		.fpu softvfp
+ 120              	EE_VerifyPageFullWriteVariable:
+ 121              	.LFB71:
+ 464:Drivers/FEEPROM/f_eeprom.c **** 
+ 465:Drivers/FEEPROM/f_eeprom.c **** /**
+ 466:Drivers/FEEPROM/f_eeprom.c ****   * @brief  Verify if active page is full and Writes variable in EEPROM.
+ 467:Drivers/FEEPROM/f_eeprom.c ****   * @param  VirtAddress: 16 bit virtual address of the variable
+ 468:Drivers/FEEPROM/f_eeprom.c ****   * @param  Data: 16 bit data to be written as variable value
+ 469:Drivers/FEEPROM/f_eeprom.c ****   * @retval Success or error status:
+ 470:Drivers/FEEPROM/f_eeprom.c ****   *           - HAL_OK: on success
+ 471:Drivers/FEEPROM/f_eeprom.c ****   *           - PAGE_FULL: if valid page is full
+ 472:Drivers/FEEPROM/f_eeprom.c ****   *           - NO_VALID_PAGE: if no valid page was found
+ 473:Drivers/FEEPROM/f_eeprom.c ****   *           - Flash error code: on write Flash error
+ 474:Drivers/FEEPROM/f_eeprom.c ****   */
+ 475:Drivers/FEEPROM/f_eeprom.c **** static uint16_t EE_VerifyPageFullWriteVariable(uint16_t VirtAddress, uint16_t Data)
+ 476:Drivers/FEEPROM/f_eeprom.c **** {
+ 122              		.loc 1 476 0
+ 123              		.cfi_startproc
+ 124              		@ args = 0, pretend = 0, frame = 0
+ 125              		@ frame_needed = 0, uses_anonymous_args = 0
+ 126              	.LVL17:
+ 127 0000 70B5     		push	{r4, r5, r6, lr}
+ 128              	.LCFI0:
+ 129              		.cfi_def_cfa_offset 16
+ 130              		.cfi_offset 4, -16
+ 131              		.cfi_offset 5, -12
+ 132              		.cfi_offset 6, -8
+ 133              		.cfi_offset 14, -4
+ 134 0002 0546     		mov	r5, r0
+ 135 0004 0E46     		mov	r6, r1
+ 136              	.LVL18:
+ 477:Drivers/FEEPROM/f_eeprom.c ****   HAL_StatusTypeDef FlashStatus = HAL_OK;
+ 478:Drivers/FEEPROM/f_eeprom.c ****   uint16_t ValidPage = PAGE0;
+ 479:Drivers/FEEPROM/f_eeprom.c ****   uint32_t Address = 0x0803E000, PageEndAddress = 0x0803E000;
+ 480:Drivers/FEEPROM/f_eeprom.c **** 
+ 481:Drivers/FEEPROM/f_eeprom.c ****   /* Get valid Page for write operation */
+ 482:Drivers/FEEPROM/f_eeprom.c ****   ValidPage = EE_FindValidPage(WRITE_IN_VALID_PAGE);
+ 137              		.loc 1 482 0
+ 138 0006 0120     		movs	r0, #1
+ 139              	.LVL19:
+ 140 0008 FFF7FEFF 		bl	EE_FindValidPage
+ 141              	.LVL20:
+ 483:Drivers/FEEPROM/f_eeprom.c **** 
+ 484:Drivers/FEEPROM/f_eeprom.c ****   /* Check if there is no valid page */
+ 485:Drivers/FEEPROM/f_eeprom.c ****   if (ValidPage == NO_VALID_PAGE)
+ 142              		.loc 1 485 0
+ARM GAS  /tmp/ccxupRjh.s 			page 12
+
+
+ 143 000c AB28     		cmp	r0, #171
+ 144 000e 22D0     		beq	.L15
+ 486:Drivers/FEEPROM/f_eeprom.c ****   {
+ 487:Drivers/FEEPROM/f_eeprom.c ****     return  NO_VALID_PAGE;
+ 488:Drivers/FEEPROM/f_eeprom.c ****   }
+ 489:Drivers/FEEPROM/f_eeprom.c **** 
+ 490:Drivers/FEEPROM/f_eeprom.c ****   /* Get the valid Page start Address */
+ 491:Drivers/FEEPROM/f_eeprom.c ****   Address = (uint32_t)(EEPROM_START_ADDRESS + (uint32_t)(ValidPage * PAGE_SIZE));
+ 145              		.loc 1 491 0
+ 146 0010 C402     		lsls	r4, r0, #11
+ 147 0012 04F10064 		add	r4, r4, #134217728
+ 148 0016 04F57A34 		add	r4, r4, #256000
+ 149              	.LVL21:
+ 492:Drivers/FEEPROM/f_eeprom.c **** 
+ 493:Drivers/FEEPROM/f_eeprom.c ****   /* Get the valid Page end Address */
+ 494:Drivers/FEEPROM/f_eeprom.c ****   PageEndAddress = (uint32_t)((EEPROM_START_ADDRESS - 2) + (uint32_t)((1 + ValidPage) * PAGE_SIZE))
+ 150              		.loc 1 494 0
+ 151 001a 431C     		adds	r3, r0, #1
+ 152 001c 0E48     		ldr	r0, .L23
+ 153              	.LVL22:
+ 154 001e 00EBC320 		add	r0, r0, r3, lsl #11
+ 155              	.LVL23:
+ 156              	.L16:
+ 495:Drivers/FEEPROM/f_eeprom.c **** 
+ 496:Drivers/FEEPROM/f_eeprom.c ****   /* Check each active page address starting from begining */
+ 497:Drivers/FEEPROM/f_eeprom.c ****   while (Address < PageEndAddress)
+ 157              		.loc 1 497 0
+ 158 0022 8442     		cmp	r4, r0
+ 159 0024 16D2     		bcs	.L21
+ 498:Drivers/FEEPROM/f_eeprom.c ****   {
+ 499:Drivers/FEEPROM/f_eeprom.c ****     /* Verify if Address and Address+2 contents are 0xFFFFFFFF */
+ 500:Drivers/FEEPROM/f_eeprom.c ****     if ((*(__IO uint32_t*)Address) == 0xFFFFFFFF)
+ 160              		.loc 1 500 0
+ 161 0026 2368     		ldr	r3, [r4]
+ 162 0028 B3F1FF3F 		cmp	r3, #-1
+ 163 002c 01D0     		beq	.L22
+ 501:Drivers/FEEPROM/f_eeprom.c ****     {
+ 502:Drivers/FEEPROM/f_eeprom.c ****       /* Set variable data */
+ 503:Drivers/FEEPROM/f_eeprom.c ****       FlashStatus = HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, Address, Data);
+ 504:Drivers/FEEPROM/f_eeprom.c ****       /* If program operation was failed, a Flash error code is returned */
+ 505:Drivers/FEEPROM/f_eeprom.c ****       if (FlashStatus != HAL_OK)
+ 506:Drivers/FEEPROM/f_eeprom.c ****       {
+ 507:Drivers/FEEPROM/f_eeprom.c ****         return FlashStatus;
+ 508:Drivers/FEEPROM/f_eeprom.c ****       }
+ 509:Drivers/FEEPROM/f_eeprom.c ****       /* Set variable virtual address */
+ 510:Drivers/FEEPROM/f_eeprom.c ****       FlashStatus = HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, Address + 2, VirtAddress);
+ 511:Drivers/FEEPROM/f_eeprom.c ****       /* Return program operation status */
+ 512:Drivers/FEEPROM/f_eeprom.c ****       return FlashStatus;
+ 513:Drivers/FEEPROM/f_eeprom.c ****     }
+ 514:Drivers/FEEPROM/f_eeprom.c ****     else
+ 515:Drivers/FEEPROM/f_eeprom.c ****     {
+ 516:Drivers/FEEPROM/f_eeprom.c ****       /* Next address location */
+ 517:Drivers/FEEPROM/f_eeprom.c ****       Address = Address + 4;
+ 164              		.loc 1 517 0
+ 165 002e 0434     		adds	r4, r4, #4
+ 166              	.LVL24:
+ 167 0030 F7E7     		b	.L16
+ARM GAS  /tmp/ccxupRjh.s 			page 13
+
+
+ 168              	.L22:
+ 503:Drivers/FEEPROM/f_eeprom.c ****       /* If program operation was failed, a Flash error code is returned */
+ 169              		.loc 1 503 0
+ 170 0032 B2B2     		uxth	r2, r6
+ 171 0034 0023     		movs	r3, #0
+ 172 0036 2146     		mov	r1, r4
+ 173 0038 0120     		movs	r0, #1
+ 174              	.LVL25:
+ 175 003a FFF7FEFF 		bl	HAL_FLASH_Program
+ 176              	.LVL26:
+ 505:Drivers/FEEPROM/f_eeprom.c ****       {
+ 177              		.loc 1 505 0
+ 178 003e 08B1     		cbz	r0, .L18
+ 507:Drivers/FEEPROM/f_eeprom.c ****       }
+ 179              		.loc 1 507 0
+ 180 0040 80B2     		uxth	r0, r0
+ 181              	.LVL27:
+ 182 0042 08E0     		b	.L15
+ 183              	.LVL28:
+ 184              	.L18:
+ 510:Drivers/FEEPROM/f_eeprom.c ****       /* Return program operation status */
+ 185              		.loc 1 510 0
+ 186 0044 AAB2     		uxth	r2, r5
+ 187 0046 0023     		movs	r3, #0
+ 188 0048 A11C     		adds	r1, r4, #2
+ 189 004a 0120     		movs	r0, #1
+ 190              	.LVL29:
+ 191 004c FFF7FEFF 		bl	HAL_FLASH_Program
+ 192              	.LVL30:
+ 512:Drivers/FEEPROM/f_eeprom.c ****     }
+ 193              		.loc 1 512 0
+ 194 0050 80B2     		uxth	r0, r0
+ 195              	.LVL31:
+ 196 0052 00E0     		b	.L15
+ 197              	.LVL32:
+ 198              	.L21:
+ 518:Drivers/FEEPROM/f_eeprom.c ****     }
+ 519:Drivers/FEEPROM/f_eeprom.c ****   }
+ 520:Drivers/FEEPROM/f_eeprom.c **** 
+ 521:Drivers/FEEPROM/f_eeprom.c ****   /* Return PAGE_FULL in case the valid page is full */
+ 522:Drivers/FEEPROM/f_eeprom.c ****   return PAGE_FULL;
+ 199              		.loc 1 522 0
+ 200 0054 8020     		movs	r0, #128
+ 201              	.LVL33:
+ 202              	.L15:
+ 523:Drivers/FEEPROM/f_eeprom.c **** }
+ 203              		.loc 1 523 0
+ 204 0056 70BD     		pop	{r4, r5, r6, pc}
+ 205              	.L24:
+ 206              		.align	2
+ 207              	.L23:
+ 208 0058 FEE70308 		.word	134473726
+ 209              		.cfi_endproc
+ 210              	.LFE71:
+ 212              		.section	.text.EE_ReadVariable,"ax",%progbits
+ 213              		.align	1
+ 214              		.global	EE_ReadVariable
+ARM GAS  /tmp/ccxupRjh.s 			page 14
+
+
+ 215              		.syntax unified
+ 216              		.thumb
+ 217              		.thumb_func
+ 218              		.fpu softvfp
+ 220              	EE_ReadVariable:
+ 221              	.LFB67:
+ 283:Drivers/FEEPROM/f_eeprom.c ****   uint16_t ValidPage = PAGE0;
+ 222              		.loc 1 283 0
+ 223              		.cfi_startproc
+ 224              		@ args = 0, pretend = 0, frame = 0
+ 225              		@ frame_needed = 0, uses_anonymous_args = 0
+ 226              	.LVL34:
+ 227 0000 38B5     		push	{r3, r4, r5, lr}
+ 228              	.LCFI1:
+ 229              		.cfi_def_cfa_offset 16
+ 230              		.cfi_offset 3, -16
+ 231              		.cfi_offset 4, -12
+ 232              		.cfi_offset 5, -8
+ 233              		.cfi_offset 14, -4
+ 234 0002 0446     		mov	r4, r0
+ 235 0004 0D46     		mov	r5, r1
+ 236              	.LVL35:
+ 289:Drivers/FEEPROM/f_eeprom.c **** 
+ 237              		.loc 1 289 0
+ 238 0006 0020     		movs	r0, #0
+ 239              	.LVL36:
+ 240 0008 FFF7FEFF 		bl	EE_FindValidPage
+ 241              	.LVL37:
+ 292:Drivers/FEEPROM/f_eeprom.c ****   {
+ 242              		.loc 1 292 0
+ 243 000c AB28     		cmp	r0, #171
+ 244 000e 14D0     		beq	.L26
+ 298:Drivers/FEEPROM/f_eeprom.c **** 
+ 245              		.loc 1 298 0
+ 246 0010 C202     		lsls	r2, r0, #11
+ 247              	.LVL38:
+ 301:Drivers/FEEPROM/f_eeprom.c **** 
+ 248              		.loc 1 301 0
+ 249 0012 431C     		adds	r3, r0, #1
+ 250 0014 0948     		ldr	r0, .L33
+ 251              	.LVL39:
+ 252 0016 00EBC320 		add	r0, r0, r3, lsl #11
+ 253              	.LVL40:
+ 254              	.L27:
+ 304:Drivers/FEEPROM/f_eeprom.c ****   {
+ 255              		.loc 1 304 0
+ 256 001a 094B     		ldr	r3, .L33+4
+ 257 001c 1344     		add	r3, r3, r2
+ 258 001e 8342     		cmp	r3, r0
+ 259 0020 0AD2     		bcs	.L31
+ 307:Drivers/FEEPROM/f_eeprom.c **** 
+ 260              		.loc 1 307 0
+ 261 0022 0388     		ldrh	r3, [r0]
+ 262 0024 9BB2     		uxth	r3, r3
+ 263              	.LVL41:
+ 310:Drivers/FEEPROM/f_eeprom.c ****     {
+ 264              		.loc 1 310 0
+ARM GAS  /tmp/ccxupRjh.s 			page 15
+
+
+ 265 0026 A342     		cmp	r3, r4
+ 266 0028 01D0     		beq	.L32
+ 323:Drivers/FEEPROM/f_eeprom.c ****     }
+ 267              		.loc 1 323 0
+ 268 002a 0438     		subs	r0, r0, #4
+ 269              	.LVL42:
+ 270 002c F5E7     		b	.L27
+ 271              	.L32:
+ 313:Drivers/FEEPROM/f_eeprom.c **** 
+ 272              		.loc 1 313 0
+ 273 002e 30F8023C 		ldrh	r3, [r0, #-2]
+ 274              	.LVL43:
+ 275 0032 2B80     		strh	r3, [r5]	@ movhi
+ 276              	.LVL44:
+ 316:Drivers/FEEPROM/f_eeprom.c **** 
+ 277              		.loc 1 316 0
+ 278 0034 0020     		movs	r0, #0
+ 279              	.LVL45:
+ 318:Drivers/FEEPROM/f_eeprom.c ****     }
+ 280              		.loc 1 318 0
+ 281 0036 00E0     		b	.L26
+ 282              	.LVL46:
+ 283              	.L31:
+ 285:Drivers/FEEPROM/f_eeprom.c ****   uint32_t Address = 0x0803E000, PageStartAddress = 0x0803E000;
+ 284              		.loc 1 285 0
+ 285 0038 0120     		movs	r0, #1
+ 286              	.LVL47:
+ 287              	.L26:
+ 329:Drivers/FEEPROM/f_eeprom.c **** 
+ 288              		.loc 1 329 0
+ 289 003a 38BD     		pop	{r3, r4, r5, pc}
+ 290              	.LVL48:
+ 291              	.L34:
+ 292              		.align	2
+ 293              	.L33:
+ 294 003c FEE70308 		.word	134473726
+ 295 0040 02E80308 		.word	134473730
+ 296              		.cfi_endproc
+ 297              	.LFE67:
+ 299              		.section	.text.EE_PageTransfer,"ax",%progbits
+ 300              		.align	1
+ 301              		.syntax unified
+ 302              		.thumb
+ 303              		.thumb_func
+ 304              		.fpu softvfp
+ 306              	EE_PageTransfer:
+ 307              	.LFB72:
+ 524:Drivers/FEEPROM/f_eeprom.c **** 
+ 525:Drivers/FEEPROM/f_eeprom.c **** /**
+ 526:Drivers/FEEPROM/f_eeprom.c ****   * @brief  Transfers last updated variables data from the full Page to
+ 527:Drivers/FEEPROM/f_eeprom.c ****   *   an empty one.
+ 528:Drivers/FEEPROM/f_eeprom.c ****   * @param  VirtAddress: 16 bit virtual address of the variable
+ 529:Drivers/FEEPROM/f_eeprom.c ****   * @param  Data: 16 bit data to be written as variable value
+ 530:Drivers/FEEPROM/f_eeprom.c ****   * @retval Success or error status:
+ 531:Drivers/FEEPROM/f_eeprom.c ****   *           - HAL_OK: on success
+ 532:Drivers/FEEPROM/f_eeprom.c ****   *           - PAGE_FULL: if valid page is full
+ 533:Drivers/FEEPROM/f_eeprom.c ****   *           - NO_VALID_PAGE: if no valid page was found
+ARM GAS  /tmp/ccxupRjh.s 			page 16
+
+
+ 534:Drivers/FEEPROM/f_eeprom.c ****   *           - Flash error code: on write Flash error
+ 535:Drivers/FEEPROM/f_eeprom.c ****   */
+ 536:Drivers/FEEPROM/f_eeprom.c **** static uint16_t EE_PageTransfer(uint16_t VirtAddress, uint16_t Data)
+ 537:Drivers/FEEPROM/f_eeprom.c **** {
+ 308              		.loc 1 537 0
+ 309              		.cfi_startproc
+ 310              		@ args = 0, pretend = 0, frame = 0
+ 311              		@ frame_needed = 0, uses_anonymous_args = 0
+ 312              	.LVL49:
+ 313 0000 2DE9F041 		push	{r4, r5, r6, r7, r8, lr}
+ 314              	.LCFI2:
+ 315              		.cfi_def_cfa_offset 24
+ 316              		.cfi_offset 4, -24
+ 317              		.cfi_offset 5, -20
+ 318              		.cfi_offset 6, -16
+ 319              		.cfi_offset 7, -12
+ 320              		.cfi_offset 8, -8
+ 321              		.cfi_offset 14, -4
+ 322 0004 0546     		mov	r5, r0
+ 323 0006 8846     		mov	r8, r1
+ 324              	.LVL50:
+ 538:Drivers/FEEPROM/f_eeprom.c ****   HAL_StatusTypeDef FlashStatus = HAL_OK;
+ 539:Drivers/FEEPROM/f_eeprom.c ****   uint32_t NewPageAddress = 0x080313FF, OldPageAddress = 0x08031000;
+ 540:Drivers/FEEPROM/f_eeprom.c ****   uint16_t ValidPage = PAGE0, VarIdx = 0;
+ 541:Drivers/FEEPROM/f_eeprom.c ****   uint16_t EepromStatus = 0, ReadStatus = 0;
+ 542:Drivers/FEEPROM/f_eeprom.c **** 
+ 543:Drivers/FEEPROM/f_eeprom.c ****   /* Get active Page for read operation */
+ 544:Drivers/FEEPROM/f_eeprom.c ****   ValidPage = EE_FindValidPage(READ_FROM_VALID_PAGE);
+ 325              		.loc 1 544 0
+ 326 0008 0020     		movs	r0, #0
+ 327              	.LVL51:
+ 328 000a FFF7FEFF 		bl	EE_FindValidPage
+ 329              	.LVL52:
+ 545:Drivers/FEEPROM/f_eeprom.c **** 
+ 546:Drivers/FEEPROM/f_eeprom.c ****   if (ValidPage == PAGE1)       /* Page1 valid */
+ 330              		.loc 1 546 0
+ 331 000e 0128     		cmp	r0, #1
+ 332 0010 0FD0     		beq	.L44
+ 547:Drivers/FEEPROM/f_eeprom.c ****   {
+ 548:Drivers/FEEPROM/f_eeprom.c ****     /* New page address where variable will be moved to */
+ 549:Drivers/FEEPROM/f_eeprom.c ****     NewPageAddress = PAGE0_BASE_ADDRESS;
+ 550:Drivers/FEEPROM/f_eeprom.c **** 
+ 551:Drivers/FEEPROM/f_eeprom.c ****     /* Old page address where variable will be taken from */
+ 552:Drivers/FEEPROM/f_eeprom.c ****     OldPageAddress = PAGE1_BASE_ADDRESS;
+ 553:Drivers/FEEPROM/f_eeprom.c ****   }
+ 554:Drivers/FEEPROM/f_eeprom.c ****   else if (ValidPage == PAGE0)  /* Page0 valid */
+ 333              		.loc 1 554 0
+ 334 0012 0028     		cmp	r0, #0
+ 335 0014 40D1     		bne	.L45
+ 555:Drivers/FEEPROM/f_eeprom.c ****   {
+ 556:Drivers/FEEPROM/f_eeprom.c ****     /* New page address where variable will be moved to */
+ 557:Drivers/FEEPROM/f_eeprom.c ****     NewPageAddress = PAGE1_BASE_ADDRESS;
+ 558:Drivers/FEEPROM/f_eeprom.c **** 
+ 559:Drivers/FEEPROM/f_eeprom.c ****     /* Old page address where variable will be taken from */
+ 560:Drivers/FEEPROM/f_eeprom.c ****     OldPageAddress = PAGE0_BASE_ADDRESS;
+ 336              		.loc 1 560 0
+ 337 0016 214F     		ldr	r7, .L50
+ARM GAS  /tmp/ccxupRjh.s 			page 17
+
+
+ 557:Drivers/FEEPROM/f_eeprom.c **** 
+ 338              		.loc 1 557 0
+ 339 0018 214E     		ldr	r6, .L50+4
+ 340              	.L36:
+ 341              	.LVL53:
+ 561:Drivers/FEEPROM/f_eeprom.c ****   }
+ 562:Drivers/FEEPROM/f_eeprom.c ****   else
+ 563:Drivers/FEEPROM/f_eeprom.c ****   {
+ 564:Drivers/FEEPROM/f_eeprom.c ****     return NO_VALID_PAGE;       /* No valid Page */
+ 565:Drivers/FEEPROM/f_eeprom.c ****   }
+ 566:Drivers/FEEPROM/f_eeprom.c **** 
+ 567:Drivers/FEEPROM/f_eeprom.c ****   /* Set the new Page status to RECEIVE_DATA status */
+ 568:Drivers/FEEPROM/f_eeprom.c ****   FlashStatus = HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, NewPageAddress, RECEIVE_DATA);
+ 342              		.loc 1 568 0
+ 343 001a 4EF6EE62 		movw	r2, #61166
+ 344 001e 0023     		movs	r3, #0
+ 345 0020 3146     		mov	r1, r6
+ 346 0022 0120     		movs	r0, #1
+ 347              	.LVL54:
+ 348 0024 FFF7FEFF 		bl	HAL_FLASH_Program
+ 349              	.LVL55:
+ 569:Drivers/FEEPROM/f_eeprom.c ****   /* If program operation was failed, a Flash error code is returned */
+ 570:Drivers/FEEPROM/f_eeprom.c ****   if (FlashStatus != HAL_OK)
+ 350              		.loc 1 570 0
+ 351 0028 30B1     		cbz	r0, .L38
+ 571:Drivers/FEEPROM/f_eeprom.c ****   {
+ 572:Drivers/FEEPROM/f_eeprom.c ****     return FlashStatus;
+ 352              		.loc 1 572 0
+ 353 002a 84B2     		uxth	r4, r0
+ 354              	.LVL56:
+ 355              	.L37:
+ 573:Drivers/FEEPROM/f_eeprom.c ****   }
+ 574:Drivers/FEEPROM/f_eeprom.c **** 
+ 575:Drivers/FEEPROM/f_eeprom.c ****   /* Write the variable passed as parameter in the new active page */
+ 576:Drivers/FEEPROM/f_eeprom.c ****   EepromStatus = EE_VerifyPageFullWriteVariable(VirtAddress, Data);
+ 577:Drivers/FEEPROM/f_eeprom.c ****   /* If program operation was failed, a Flash error code is returned */
+ 578:Drivers/FEEPROM/f_eeprom.c ****   if (EepromStatus != HAL_OK)
+ 579:Drivers/FEEPROM/f_eeprom.c ****   {
+ 580:Drivers/FEEPROM/f_eeprom.c ****     return EepromStatus;
+ 581:Drivers/FEEPROM/f_eeprom.c ****   }
+ 582:Drivers/FEEPROM/f_eeprom.c **** 
+ 583:Drivers/FEEPROM/f_eeprom.c ****   /* Transfer process: transfer variables from old to the new active page */
+ 584:Drivers/FEEPROM/f_eeprom.c ****   for (VarIdx = 0; VarIdx < NumbOfVar; VarIdx++)
+ 585:Drivers/FEEPROM/f_eeprom.c ****   {
+ 586:Drivers/FEEPROM/f_eeprom.c ****     if (VarIdx != VirtAddress)  /* Check each variable except the one passed as parameter */
+ 587:Drivers/FEEPROM/f_eeprom.c ****     {
+ 588:Drivers/FEEPROM/f_eeprom.c ****       /* Read the other last variable updates */
+ 589:Drivers/FEEPROM/f_eeprom.c ****       ReadStatus = EE_ReadVariable(VarIdx, &DataVar);
+ 590:Drivers/FEEPROM/f_eeprom.c ****       /* In case variable corresponding to the virtual address was found */
+ 591:Drivers/FEEPROM/f_eeprom.c ****       if (ReadStatus != 0x1)
+ 592:Drivers/FEEPROM/f_eeprom.c ****       {
+ 593:Drivers/FEEPROM/f_eeprom.c ****         /* Transfer the variable to the new active page */
+ 594:Drivers/FEEPROM/f_eeprom.c ****         EepromStatus = EE_VerifyPageFullWriteVariable(VarIdx, DataVar);
+ 595:Drivers/FEEPROM/f_eeprom.c ****         /* If program operation was failed, a Flash error code is returned */
+ 596:Drivers/FEEPROM/f_eeprom.c ****         if (EepromStatus != HAL_OK)
+ 597:Drivers/FEEPROM/f_eeprom.c ****         {
+ 598:Drivers/FEEPROM/f_eeprom.c ****           return EepromStatus;
+ARM GAS  /tmp/ccxupRjh.s 			page 18
+
+
+ 599:Drivers/FEEPROM/f_eeprom.c ****         }
+ 600:Drivers/FEEPROM/f_eeprom.c ****       }
+ 601:Drivers/FEEPROM/f_eeprom.c ****     }
+ 602:Drivers/FEEPROM/f_eeprom.c ****   }
+ 603:Drivers/FEEPROM/f_eeprom.c **** 
+ 604:Drivers/FEEPROM/f_eeprom.c ****   /* Erase the old Page: Set old Page status to ERASED status */
+ 605:Drivers/FEEPROM/f_eeprom.c ****   EraseInitStruct.PageAddress = OldPageAddress; 
+ 606:Drivers/FEEPROM/f_eeprom.c ****   FlashStatus = HAL_FLASHEx_Erase(&EraseInitStruct, &PAGEError);
+ 607:Drivers/FEEPROM/f_eeprom.c ****   /* If erase operation was failed, a Flash error code is returned */
+ 608:Drivers/FEEPROM/f_eeprom.c ****   if (FlashStatus != HAL_OK)
+ 609:Drivers/FEEPROM/f_eeprom.c ****   {
+ 610:Drivers/FEEPROM/f_eeprom.c ****     return FlashStatus;
+ 611:Drivers/FEEPROM/f_eeprom.c ****   }
+ 612:Drivers/FEEPROM/f_eeprom.c **** 
+ 613:Drivers/FEEPROM/f_eeprom.c ****   /* Set new Page status to VALID_PAGE status */
+ 614:Drivers/FEEPROM/f_eeprom.c ****   FlashStatus = HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, NewPageAddress, VALID_PAGE);
+ 615:Drivers/FEEPROM/f_eeprom.c ****   
+ 616:Drivers/FEEPROM/f_eeprom.c ****   /* If program operation was failed, a Flash error code is returned */
+ 617:Drivers/FEEPROM/f_eeprom.c ****   if (FlashStatus != HAL_OK)
+ 618:Drivers/FEEPROM/f_eeprom.c ****   {
+ 619:Drivers/FEEPROM/f_eeprom.c ****     return FlashStatus;
+ 620:Drivers/FEEPROM/f_eeprom.c ****   }
+ 621:Drivers/FEEPROM/f_eeprom.c **** 
+ 622:Drivers/FEEPROM/f_eeprom.c ****   /* Return last operation flash status */
+ 623:Drivers/FEEPROM/f_eeprom.c ****   return FlashStatus;
+ 624:Drivers/FEEPROM/f_eeprom.c **** }
+ 356              		.loc 1 624 0
+ 357 002c 2046     		mov	r0, r4
+ 358 002e BDE8F081 		pop	{r4, r5, r6, r7, r8, pc}
+ 359              	.LVL57:
+ 360              	.L44:
+ 552:Drivers/FEEPROM/f_eeprom.c ****   }
+ 361              		.loc 1 552 0
+ 362 0032 1B4F     		ldr	r7, .L50+4
+ 549:Drivers/FEEPROM/f_eeprom.c **** 
+ 363              		.loc 1 549 0
+ 364 0034 194E     		ldr	r6, .L50
+ 365 0036 F0E7     		b	.L36
+ 366              	.LVL58:
+ 367              	.L38:
+ 576:Drivers/FEEPROM/f_eeprom.c ****   /* If program operation was failed, a Flash error code is returned */
+ 368              		.loc 1 576 0
+ 369 0038 4146     		mov	r1, r8
+ 370 003a 2846     		mov	r0, r5
+ 371              	.LVL59:
+ 372 003c FFF7FEFF 		bl	EE_VerifyPageFullWriteVariable
+ 373              	.LVL60:
+ 578:Drivers/FEEPROM/f_eeprom.c ****   {
+ 374              		.loc 1 578 0
+ 375 0040 0446     		mov	r4, r0
+ 376 0042 10B1     		cbz	r0, .L39
+ 377 0044 F2E7     		b	.L37
+ 378              	.LVL61:
+ 379              	.L40:
+ 584:Drivers/FEEPROM/f_eeprom.c ****   {
+ 380              		.loc 1 584 0 discriminator 2
+ 381 0046 0134     		adds	r4, r4, #1
+ARM GAS  /tmp/ccxupRjh.s 			page 19
+
+
+ 382              	.LVL62:
+ 383 0048 A4B2     		uxth	r4, r4
+ 384              	.LVL63:
+ 385              	.L39:
+ 584:Drivers/FEEPROM/f_eeprom.c ****   {
+ 386              		.loc 1 584 0 is_stmt 0 discriminator 1
+ 387 004a B4F5FA6F 		cmp	r4, #2000
+ 388 004e 10D2     		bcs	.L48
+ 586:Drivers/FEEPROM/f_eeprom.c ****     {
+ 389              		.loc 1 586 0 is_stmt 1
+ 390 0050 AC42     		cmp	r4, r5
+ 391 0052 F8D0     		beq	.L40
+ 589:Drivers/FEEPROM/f_eeprom.c ****       /* In case variable corresponding to the virtual address was found */
+ 392              		.loc 1 589 0
+ 393 0054 1349     		ldr	r1, .L50+8
+ 394 0056 2046     		mov	r0, r4
+ 395 0058 FFF7FEFF 		bl	EE_ReadVariable
+ 396              	.LVL64:
+ 591:Drivers/FEEPROM/f_eeprom.c ****       {
+ 397              		.loc 1 591 0
+ 398 005c 0128     		cmp	r0, #1
+ 399 005e F2D0     		beq	.L40
+ 594:Drivers/FEEPROM/f_eeprom.c ****         /* If program operation was failed, a Flash error code is returned */
+ 400              		.loc 1 594 0
+ 401 0060 104B     		ldr	r3, .L50+8
+ 402 0062 1988     		ldrh	r1, [r3]
+ 403 0064 2046     		mov	r0, r4
+ 404              	.LVL65:
+ 405 0066 FFF7FEFF 		bl	EE_VerifyPageFullWriteVariable
+ 406              	.LVL66:
+ 596:Drivers/FEEPROM/f_eeprom.c ****         {
+ 407              		.loc 1 596 0
+ 408 006a 0028     		cmp	r0, #0
+ 409 006c EBD0     		beq	.L40
+ 598:Drivers/FEEPROM/f_eeprom.c ****         }
+ 410              		.loc 1 598 0
+ 411 006e 0446     		mov	r4, r0
+ 412              	.LVL67:
+ 413 0070 DCE7     		b	.L37
+ 414              	.LVL68:
+ 415              	.L48:
+ 605:Drivers/FEEPROM/f_eeprom.c ****   FlashStatus = HAL_FLASHEx_Erase(&EraseInitStruct, &PAGEError);
+ 416              		.loc 1 605 0
+ 417 0072 0D48     		ldr	r0, .L50+12
+ 418 0074 8760     		str	r7, [r0, #8]
+ 606:Drivers/FEEPROM/f_eeprom.c ****   /* If erase operation was failed, a Flash error code is returned */
+ 419              		.loc 1 606 0
+ 420 0076 0D49     		ldr	r1, .L50+16
+ 421 0078 FFF7FEFF 		bl	HAL_FLASHEx_Erase
+ 422              	.LVL69:
+ 608:Drivers/FEEPROM/f_eeprom.c ****   {
+ 423              		.loc 1 608 0
+ 424 007c 08B1     		cbz	r0, .L42
+ 610:Drivers/FEEPROM/f_eeprom.c ****   }
+ 425              		.loc 1 610 0
+ 426 007e 84B2     		uxth	r4, r0
+ 427              	.LVL70:
+ARM GAS  /tmp/ccxupRjh.s 			page 20
+
+
+ 428 0080 D4E7     		b	.L37
+ 429              	.LVL71:
+ 430              	.L42:
+ 614:Drivers/FEEPROM/f_eeprom.c ****   
+ 431              		.loc 1 614 0
+ 432 0082 0022     		movs	r2, #0
+ 433 0084 0023     		movs	r3, #0
+ 434 0086 3146     		mov	r1, r6
+ 435 0088 0120     		movs	r0, #1
+ 436              	.LVL72:
+ 437 008a FFF7FEFF 		bl	HAL_FLASH_Program
+ 438              	.LVL73:
+ 617:Drivers/FEEPROM/f_eeprom.c ****   {
+ 439              		.loc 1 617 0
+ 440 008e 08B9     		cbnz	r0, .L49
+ 623:Drivers/FEEPROM/f_eeprom.c **** }
+ 441              		.loc 1 623 0
+ 442 0090 84B2     		uxth	r4, r0
+ 443              	.LVL74:
+ 444 0092 CBE7     		b	.L37
+ 445              	.LVL75:
+ 446              	.L49:
+ 619:Drivers/FEEPROM/f_eeprom.c ****   }
+ 447              		.loc 1 619 0
+ 448 0094 84B2     		uxth	r4, r0
+ 449              	.LVL76:
+ 450 0096 C9E7     		b	.L37
+ 451              	.LVL77:
+ 452              	.L45:
+ 564:Drivers/FEEPROM/f_eeprom.c ****   }
+ 453              		.loc 1 564 0
+ 454 0098 AB24     		movs	r4, #171
+ 455 009a C7E7     		b	.L37
+ 456              	.L51:
+ 457              		.align	2
+ 458              	.L50:
+ 459 009c 00E80308 		.word	134473728
+ 460 00a0 00F00308 		.word	134475776
+ 461 00a4 00000000 		.word	.LANCHOR0
+ 462 00a8 00000000 		.word	.LANCHOR1
+ 463 00ac 00000000 		.word	.LANCHOR2
+ 464              		.cfi_endproc
+ 465              	.LFE72:
+ 467              		.section	.text.EE_WriteVariable,"ax",%progbits
+ 468              		.align	1
+ 469              		.global	EE_WriteVariable
+ 470              		.syntax unified
+ 471              		.thumb
+ 472              		.thumb_func
+ 473              		.fpu softvfp
+ 475              	EE_WriteVariable:
+ 476              	.LFB68:
+ 342:Drivers/FEEPROM/f_eeprom.c ****   uint16_t Status = 0;
+ 477              		.loc 1 342 0
+ 478              		.cfi_startproc
+ 479              		@ args = 0, pretend = 0, frame = 0
+ 480              		@ frame_needed = 0, uses_anonymous_args = 0
+ARM GAS  /tmp/ccxupRjh.s 			page 21
+
+
+ 481              	.LVL78:
+ 482 0000 38B5     		push	{r3, r4, r5, lr}
+ 483              	.LCFI3:
+ 484              		.cfi_def_cfa_offset 16
+ 485              		.cfi_offset 3, -16
+ 486              		.cfi_offset 4, -12
+ 487              		.cfi_offset 5, -8
+ 488              		.cfi_offset 14, -4
+ 489 0002 0446     		mov	r4, r0
+ 490 0004 0D46     		mov	r5, r1
+ 491              	.LVL79:
+ 346:Drivers/FEEPROM/f_eeprom.c **** 
+ 492              		.loc 1 346 0
+ 493 0006 FFF7FEFF 		bl	EE_VerifyPageFullWriteVariable
+ 494              	.LVL80:
+ 349:Drivers/FEEPROM/f_eeprom.c ****   {
+ 495              		.loc 1 349 0
+ 496 000a 8028     		cmp	r0, #128
+ 497 000c 00D0     		beq	.L55
+ 498              	.L53:
+ 357:Drivers/FEEPROM/f_eeprom.c **** 
+ 499              		.loc 1 357 0
+ 500 000e 38BD     		pop	{r3, r4, r5, pc}
+ 501              	.L55:
+ 352:Drivers/FEEPROM/f_eeprom.c ****   }
+ 502              		.loc 1 352 0
+ 503 0010 2946     		mov	r1, r5
+ 504 0012 2046     		mov	r0, r4
+ 505              	.LVL81:
+ 506 0014 FFF7FEFF 		bl	EE_PageTransfer
+ 507              	.LVL82:
+ 508 0018 F9E7     		b	.L53
+ 509              		.cfi_endproc
+ 510              	.LFE68:
+ 512              		.section	.text.EE_Format,"ax",%progbits
+ 513              		.align	1
+ 514              		.global	EE_Format
+ 515              		.syntax unified
+ 516              		.thumb
+ 517              		.thumb_func
+ 518              		.fpu softvfp
+ 520              	EE_Format:
+ 521              	.LFB69:
+ 366:Drivers/FEEPROM/f_eeprom.c **** 	HAL_StatusTypeDef FlashStatus = HAL_OK;
+ 522              		.loc 1 366 0
+ 523              		.cfi_startproc
+ 524              		@ args = 0, pretend = 0, frame = 0
+ 525              		@ frame_needed = 0, uses_anonymous_args = 0
+ 526 0000 08B5     		push	{r3, lr}
+ 527              	.LCFI4:
+ 528              		.cfi_def_cfa_offset 8
+ 529              		.cfi_offset 3, -8
+ 530              		.cfi_offset 14, -4
+ 531              	.LVL83:
+ 370:Drivers/FEEPROM/f_eeprom.c **** 	FlashStatus = HAL_FLASHEx_Erase(&EraseInitStruct, &PAGEError);
+ 532              		.loc 1 370 0
+ 533 0002 0D48     		ldr	r0, .L60
+ARM GAS  /tmp/ccxupRjh.s 			page 22
+
+
+ 534 0004 0D4B     		ldr	r3, .L60+4
+ 535 0006 8360     		str	r3, [r0, #8]
+ 371:Drivers/FEEPROM/f_eeprom.c **** 
+ 536              		.loc 1 371 0
+ 537 0008 0D49     		ldr	r1, .L60+8
+ 538 000a FFF7FEFF 		bl	HAL_FLASHEx_Erase
+ 539              	.LVL84:
+ 374:Drivers/FEEPROM/f_eeprom.c ****   		return FlashStatus;
+ 540              		.loc 1 374 0
+ 541 000e 0346     		mov	r3, r0
+ 542 0010 08B1     		cbz	r0, .L59
+ 543              	.LVL85:
+ 544              	.L57:
+ 392:Drivers/FEEPROM/f_eeprom.c **** 
+ 545              		.loc 1 392 0
+ 546 0012 1846     		mov	r0, r3
+ 547 0014 08BD     		pop	{r3, pc}
+ 548              	.LVL86:
+ 549              	.L59:
+ 379:Drivers/FEEPROM/f_eeprom.c **** 
+ 550              		.loc 1 379 0
+ 551 0016 0022     		movs	r2, #0
+ 552 0018 0023     		movs	r3, #0
+ 553 001a 0849     		ldr	r1, .L60+4
+ 554 001c 0120     		movs	r0, #1
+ 555              	.LVL87:
+ 556 001e FFF7FEFF 		bl	HAL_FLASH_Program
+ 557              	.LVL88:
+ 382:Drivers/FEEPROM/f_eeprom.c ****   		return FlashStatus;
+ 558              		.loc 1 382 0
+ 559 0022 0346     		mov	r3, r0
+ 560 0024 0028     		cmp	r0, #0
+ 561 0026 F4D1     		bne	.L57
+ 387:Drivers/FEEPROM/f_eeprom.c **** 	FlashStatus = HAL_FLASHEx_Erase(&EraseInitStruct, &PAGEError);
+ 562              		.loc 1 387 0
+ 563 0028 0348     		ldr	r0, .L60
+ 564              	.LVL89:
+ 565 002a 064B     		ldr	r3, .L60+12
+ 566 002c 8360     		str	r3, [r0, #8]
+ 388:Drivers/FEEPROM/f_eeprom.c **** 
+ 567              		.loc 1 388 0
+ 568 002e 0449     		ldr	r1, .L60+8
+ 569 0030 FFF7FEFF 		bl	HAL_FLASHEx_Erase
+ 570              	.LVL90:
+ 571 0034 0346     		mov	r3, r0
+ 572              	.LVL91:
+ 391:Drivers/FEEPROM/f_eeprom.c **** }
+ 573              		.loc 1 391 0
+ 574 0036 ECE7     		b	.L57
+ 575              	.L61:
+ 576              		.align	2
+ 577              	.L60:
+ 578 0038 00000000 		.word	.LANCHOR1
+ 579 003c 00E80308 		.word	134473728
+ 580 0040 00000000 		.word	.LANCHOR2
+ 581 0044 00F00308 		.word	134475776
+ 582              		.cfi_endproc
+ARM GAS  /tmp/ccxupRjh.s 			page 23
+
+
+ 583              	.LFE69:
+ 585              		.section	.text.EE_Init,"ax",%progbits
+ 586              		.align	1
+ 587              		.global	EE_Init
+ 588              		.syntax unified
+ 589              		.thumb
+ 590              		.thumb_func
+ 591              		.fpu softvfp
+ 593              	EE_Init:
+ 594              	.LFB66:
+  55:Drivers/FEEPROM/f_eeprom.c ****   /* */
+ 595              		.loc 1 55 0
+ 596              		.cfi_startproc
+ 597              		@ args = 0, pretend = 0, frame = 0
+ 598              		@ frame_needed = 0, uses_anonymous_args = 0
+ 599 0000 38B5     		push	{r3, r4, r5, lr}
+ 600              	.LCFI5:
+ 601              		.cfi_def_cfa_offset 16
+ 602              		.cfi_offset 3, -16
+ 603              		.cfi_offset 4, -12
+ 604              		.cfi_offset 5, -8
+ 605              		.cfi_offset 14, -4
+ 606              	.LVL92:
+  64:Drivers/FEEPROM/f_eeprom.c ****   /* Get Page1 status */
+ 607              		.loc 1 64 0
+ 608 0002 624A     		ldr	r2, .L96
+ 609 0004 1488     		ldrh	r4, [r2]
+ 610 0006 A4B2     		uxth	r4, r4
+ 611              	.LVL93:
+  66:Drivers/FEEPROM/f_eeprom.c **** 
+ 612              		.loc 1 66 0
+ 613 0008 614B     		ldr	r3, .L96+4
+ 614 000a 1D88     		ldrh	r5, [r3]
+ 615 000c ADB2     		uxth	r5, r5
+ 616              	.LVL94:
+  69:Drivers/FEEPROM/f_eeprom.c ****   EraseInitStruct.PageAddress = PAGE0_BASE_ADDRESS;
+ 617              		.loc 1 69 0
+ 618 000e 614B     		ldr	r3, .L96+8
+ 619 0010 0021     		movs	r1, #0
+ 620 0012 1960     		str	r1, [r3]
+  70:Drivers/FEEPROM/f_eeprom.c ****   EraseInitStruct.NbPages     = 1;
+ 621              		.loc 1 70 0
+ 622 0014 9A60     		str	r2, [r3, #8]
+  71:Drivers/FEEPROM/f_eeprom.c **** 
+ 623              		.loc 1 71 0
+ 624 0016 0122     		movs	r2, #1
+ 625 0018 DA60     		str	r2, [r3, #12]
+  75:Drivers/FEEPROM/f_eeprom.c ****   {
+ 626              		.loc 1 75 0
+ 627 001a 4EF6EE63 		movw	r3, #61166
+ 628 001e 9C42     		cmp	r4, r3
+ 629 0020 28D0     		beq	.L64
+ 630 0022 4FF6FF73 		movw	r3, #65535
+ 631 0026 9C42     		cmp	r4, r3
+ 632 0028 06D0     		beq	.L65
+ 633 002a 002C     		cmp	r4, #0
+ 634 002c 6DD0     		beq	.L86
+ARM GAS  /tmp/ccxupRjh.s 			page 24
+
+
+ 259:Drivers/FEEPROM/f_eeprom.c ****       /* If erase/program operation was failed, a Flash error code is returned */
+ 635              		.loc 1 259 0
+ 636 002e FFF7FEFF 		bl	EE_Format
+ 637              	.LVL95:
+ 638 0032 83B2     		uxth	r3, r0
+ 639              	.LVL96:
+ 640              	.L68:
+ 269:Drivers/FEEPROM/f_eeprom.c **** 
+ 641              		.loc 1 269 0
+ 642 0034 1846     		mov	r0, r3
+ 643 0036 38BD     		pop	{r3, r4, r5, pc}
+ 644              	.LVL97:
+ 645              	.L65:
+  78:Drivers/FEEPROM/f_eeprom.c ****       {
+ 646              		.loc 1 78 0
+ 647 0038 3DB1     		cbz	r5, .L87
+  89:Drivers/FEEPROM/f_eeprom.c ****       {
+ 648              		.loc 1 89 0
+ 649 003a 4EF6EE63 		movw	r3, #61166
+ 650 003e 9D42     		cmp	r5, r3
+ 651 0040 09D0     		beq	.L88
+ 109:Drivers/FEEPROM/f_eeprom.c ****         /* If erase/program operation was failed, a Flash error code is returned */
+ 652              		.loc 1 109 0
+ 653 0042 FFF7FEFF 		bl	EE_Format
+ 654              	.LVL98:
+ 655 0046 83B2     		uxth	r3, r0
+ 656              	.LVL99:
+ 657 0048 F4E7     		b	.L68
+ 658              	.LVL100:
+ 659              	.L87:
+  81:Drivers/FEEPROM/f_eeprom.c **** 
+ 660              		.loc 1 81 0
+ 661 004a 5349     		ldr	r1, .L96+12
+ 662 004c 5148     		ldr	r0, .L96+8
+ 663 004e FFF7FEFF 		bl	HAL_FLASHEx_Erase
+ 664              	.LVL101:
+ 665 0052 83B2     		uxth	r3, r0
+ 666              	.LVL102:
+ 667 0054 EEE7     		b	.L68
+ 668              	.LVL103:
+ 669              	.L88:
+  92:Drivers/FEEPROM/f_eeprom.c ****         /* If erase operation was failed, a Flash error code is returned */
+ 670              		.loc 1 92 0
+ 671 0056 5049     		ldr	r1, .L96+12
+ 672 0058 4E48     		ldr	r0, .L96+8
+ 673 005a FFF7FEFF 		bl	HAL_FLASHEx_Erase
+ 674              	.LVL104:
+ 675 005e 83B2     		uxth	r3, r0
+ 676              	.LVL105:
+  94:Drivers/FEEPROM/f_eeprom.c ****         {
+ 677              		.loc 1 94 0
+ 678 0060 002B     		cmp	r3, #0
+ 679 0062 E7D1     		bne	.L68
+  99:Drivers/FEEPROM/f_eeprom.c ****         /* If program operation was failed, a Flash error code is returned */
+ 680              		.loc 1 99 0
+ 681 0064 0022     		movs	r2, #0
+ 682 0066 0023     		movs	r3, #0
+ARM GAS  /tmp/ccxupRjh.s 			page 25
+
+
+ 683              	.LVL106:
+ 684 0068 4949     		ldr	r1, .L96+4
+ 685 006a 0120     		movs	r0, #1
+ 686              	.LVL107:
+ 687 006c FFF7FEFF 		bl	HAL_FLASH_Program
+ 688              	.LVL108:
+ 689 0070 83B2     		uxth	r3, r0
+ 690              	.LVL109:
+ 691 0072 DFE7     		b	.L68
+ 692              	.LVL110:
+ 693              	.L64:
+ 119:Drivers/FEEPROM/f_eeprom.c ****       {
+ 694              		.loc 1 119 0
+ 695 0074 25B3     		cbz	r5, .L81
+ 162:Drivers/FEEPROM/f_eeprom.c ****       {
+ 696              		.loc 1 162 0
+ 697 0076 4FF6FF73 		movw	r3, #65535
+ 698 007a 9D42     		cmp	r5, r3
+ 699 007c 34D0     		beq	.L89
+ 183:Drivers/FEEPROM/f_eeprom.c ****         /* If erase/program operation was failed, a Flash error code is returned */
+ 700              		.loc 1 183 0
+ 701 007e FFF7FEFF 		bl	EE_Format
+ 702              	.LVL111:
+ 703 0082 83B2     		uxth	r3, r0
+ 704              	.LVL112:
+ 705 0084 D6E7     		b	.L68
+ 706              	.LVL113:
+ 707              	.L91:
+ 126:Drivers/FEEPROM/f_eeprom.c ****           }
+ 708              		.loc 1 126 0
+ 709 0086 2CB2     		sxth	r4, r5
+ 710              	.LVL114:
+ 711 0088 09E0     		b	.L72
+ 712              	.L73:
+ 122:Drivers/FEEPROM/f_eeprom.c ****         {
+ 713              		.loc 1 122 0 discriminator 2
+ 714 008a 0135     		adds	r5, r5, #1
+ 715              	.LVL115:
+ 716 008c ADB2     		uxth	r5, r5
+ 717              	.LVL116:
+ 718              	.L70:
+ 122:Drivers/FEEPROM/f_eeprom.c ****         {
+ 719              		.loc 1 122 0 is_stmt 0 discriminator 1
+ 720 008e B5F5FA6F 		cmp	r5, #2000
+ 721 0092 18D2     		bcs	.L90
+ 124:Drivers/FEEPROM/f_eeprom.c ****           {
+ 722              		.loc 1 124 0 is_stmt 1
+ 723 0094 414B     		ldr	r3, .L96+16
+ 724 0096 1B88     		ldrh	r3, [r3]
+ 725 0098 9BB2     		uxth	r3, r3
+ 726 009a AB42     		cmp	r3, r5
+ 727 009c F3D0     		beq	.L91
+ 728              	.L72:
+ 128:Drivers/FEEPROM/f_eeprom.c ****           {
+ 729              		.loc 1 128 0
+ 730 009e A542     		cmp	r5, r4
+ 731 00a0 F3D0     		beq	.L73
+ARM GAS  /tmp/ccxupRjh.s 			page 26
+
+
+ 131:Drivers/FEEPROM/f_eeprom.c ****             /* In case variable corresponding to the virtual address was found */
+ 732              		.loc 1 131 0
+ 733 00a2 3F49     		ldr	r1, .L96+20
+ 734 00a4 2846     		mov	r0, r5
+ 735 00a6 FFF7FEFF 		bl	EE_ReadVariable
+ 736              	.LVL117:
+ 133:Drivers/FEEPROM/f_eeprom.c ****             {
+ 737              		.loc 1 133 0
+ 738 00aa 0128     		cmp	r0, #1
+ 739 00ac EDD0     		beq	.L73
+ 136:Drivers/FEEPROM/f_eeprom.c ****               /* If program operation was failed, a Flash error code is returned */
+ 740              		.loc 1 136 0
+ 741 00ae 3C4B     		ldr	r3, .L96+20
+ 742 00b0 1988     		ldrh	r1, [r3]
+ 743 00b2 2846     		mov	r0, r5
+ 744              	.LVL118:
+ 745 00b4 FFF7FEFF 		bl	EE_VerifyPageFullWriteVariable
+ 746              	.LVL119:
+ 138:Drivers/FEEPROM/f_eeprom.c ****               {
+ 747              		.loc 1 138 0
+ 748 00b8 0346     		mov	r3, r0
+ 749 00ba 0028     		cmp	r0, #0
+ 750 00bc E5D0     		beq	.L73
+ 751 00be B9E7     		b	.L68
+ 752              	.LVL120:
+ 753              	.L81:
+  60:Drivers/FEEPROM/f_eeprom.c ****   uint16_t  FlashStatus;  
+ 754              		.loc 1 60 0
+ 755 00c0 4FF0FF34 		mov	r4, #-1
+ 756              	.LVL121:
+ 757 00c4 E3E7     		b	.L70
+ 758              	.LVL122:
+ 759              	.L90:
+ 146:Drivers/FEEPROM/f_eeprom.c **** 
+ 760              		.loc 1 146 0
+ 761 00c6 0022     		movs	r2, #0
+ 762 00c8 0023     		movs	r3, #0
+ 763 00ca 3049     		ldr	r1, .L96
+ 764 00cc 0120     		movs	r0, #1
+ 765 00ce FFF7FEFF 		bl	HAL_FLASH_Program
+ 766              	.LVL123:
+ 767 00d2 83B2     		uxth	r3, r0
+ 768              	.LVL124:
+ 149:Drivers/FEEPROM/f_eeprom.c ****         {
+ 769              		.loc 1 149 0
+ 770 00d4 002B     		cmp	r3, #0
+ 771 00d6 ADD1     		bne	.L68
+ 154:Drivers/FEEPROM/f_eeprom.c ****         FlashStatus = HAL_FLASHEx_Erase(&EraseInitStruct, &PAGEError);
+ 772              		.loc 1 154 0
+ 773 00d8 2E48     		ldr	r0, .L96+8
+ 774 00da 2D4B     		ldr	r3, .L96+4
+ 775              	.LVL125:
+ 776 00dc 8360     		str	r3, [r0, #8]
+ 155:Drivers/FEEPROM/f_eeprom.c ****         /* If erase operation was failed, a Flash error code is returned */
+ 777              		.loc 1 155 0
+ 778 00de 2E49     		ldr	r1, .L96+12
+ 779 00e0 FFF7FEFF 		bl	HAL_FLASHEx_Erase
+ARM GAS  /tmp/ccxupRjh.s 			page 27
+
+
+ 780              	.LVL126:
+ 781 00e4 83B2     		uxth	r3, r0
+ 782              	.LVL127:
+ 783 00e6 A5E7     		b	.L68
+ 784              	.LVL128:
+ 785              	.L89:
+ 165:Drivers/FEEPROM/f_eeprom.c ****         FlashStatus = HAL_FLASHEx_Erase(&EraseInitStruct, &PAGEError);
+ 786              		.loc 1 165 0
+ 787 00e8 2A48     		ldr	r0, .L96+8
+ 788 00ea 294B     		ldr	r3, .L96+4
+ 789 00ec 8360     		str	r3, [r0, #8]
+ 166:Drivers/FEEPROM/f_eeprom.c ****         /* If erase operation was failed, a Flash error code is returned */
+ 790              		.loc 1 166 0
+ 791 00ee 2A49     		ldr	r1, .L96+12
+ 792 00f0 FFF7FEFF 		bl	HAL_FLASHEx_Erase
+ 793              	.LVL129:
+ 794 00f4 83B2     		uxth	r3, r0
+ 795              	.LVL130:
+ 168:Drivers/FEEPROM/f_eeprom.c ****         {
+ 796              		.loc 1 168 0
+ 797 00f6 002B     		cmp	r3, #0
+ 798 00f8 9CD1     		bne	.L68
+ 173:Drivers/FEEPROM/f_eeprom.c ****         /* If program operation was failed, a Flash error code is returned */
+ 799              		.loc 1 173 0
+ 800 00fa 0022     		movs	r2, #0
+ 801 00fc 0023     		movs	r3, #0
+ 802              	.LVL131:
+ 803 00fe 2349     		ldr	r1, .L96
+ 804 0100 0120     		movs	r0, #1
+ 805              	.LVL132:
+ 806 0102 FFF7FEFF 		bl	HAL_FLASH_Program
+ 807              	.LVL133:
+ 808 0106 83B2     		uxth	r3, r0
+ 809              	.LVL134:
+ 810 0108 94E7     		b	.L68
+ 811              	.LVL135:
+ 812              	.L86:
+ 193:Drivers/FEEPROM/f_eeprom.c ****       {
+ 813              		.loc 1 193 0
+ 814 010a 35B1     		cbz	r5, .L92
+ 203:Drivers/FEEPROM/f_eeprom.c ****       {
+ 815              		.loc 1 203 0
+ 816 010c 4FF6FF73 		movw	r3, #65535
+ 817 0110 9D42     		cmp	r5, r3
+ 818 0112 06D0     		beq	.L93
+  60:Drivers/FEEPROM/f_eeprom.c ****   uint16_t  FlashStatus;  
+ 819              		.loc 1 60 0
+ 820 0114 4FF0FF35 		mov	r5, #-1
+ 821              	.LVL136:
+ 822 0118 0FE0     		b	.L77
+ 823              	.LVL137:
+ 824              	.L92:
+ 196:Drivers/FEEPROM/f_eeprom.c ****         /* If erase/program operation was failed, a Flash error code is returned */
+ 825              		.loc 1 196 0
+ 826 011a FFF7FEFF 		bl	EE_Format
+ 827              	.LVL138:
+ 828 011e 83B2     		uxth	r3, r0
+ARM GAS  /tmp/ccxupRjh.s 			page 28
+
+
+ 829              	.LVL139:
+ 830 0120 88E7     		b	.L68
+ 831              	.LVL140:
+ 832              	.L93:
+ 206:Drivers/FEEPROM/f_eeprom.c ****         FlashStatus = HAL_FLASHEx_Erase(&EraseInitStruct, &PAGEError);
+ 833              		.loc 1 206 0
+ 834 0122 1C48     		ldr	r0, .L96+8
+ 835 0124 1A4B     		ldr	r3, .L96+4
+ 836 0126 8360     		str	r3, [r0, #8]
+ 207:Drivers/FEEPROM/f_eeprom.c ****         /* If erase operation was failed, a Flash error code is returned */
+ 837              		.loc 1 207 0
+ 838 0128 1B49     		ldr	r1, .L96+12
+ 839 012a FFF7FEFF 		bl	HAL_FLASHEx_Erase
+ 840              	.LVL141:
+ 841 012e 83B2     		uxth	r3, r0
+ 842              	.LVL142:
+ 843 0130 80E7     		b	.L68
+ 844              	.LVL143:
+ 845              	.L95:
+ 221:Drivers/FEEPROM/f_eeprom.c ****           }
+ 846              		.loc 1 221 0
+ 847 0132 25B2     		sxth	r5, r4
+ 848              	.LVL144:
+ 849 0134 09E0     		b	.L78
+ 850              	.L79:
+ 217:Drivers/FEEPROM/f_eeprom.c ****         {
+ 851              		.loc 1 217 0 discriminator 2
+ 852 0136 0134     		adds	r4, r4, #1
+ 853              	.LVL145:
+ 854 0138 A4B2     		uxth	r4, r4
+ 855              	.LVL146:
+ 856              	.L77:
+ 217:Drivers/FEEPROM/f_eeprom.c ****         {
+ 857              		.loc 1 217 0 is_stmt 0 discriminator 1
+ 858 013a B4F5FA6F 		cmp	r4, #2000
+ 859 013e 15D2     		bcs	.L94
+ 219:Drivers/FEEPROM/f_eeprom.c ****           {
+ 860              		.loc 1 219 0 is_stmt 1
+ 861 0140 184B     		ldr	r3, .L96+24
+ 862 0142 1B88     		ldrh	r3, [r3]
+ 863 0144 9BB2     		uxth	r3, r3
+ 864 0146 A342     		cmp	r3, r4
+ 865 0148 F3D0     		beq	.L95
+ 866              	.L78:
+ 223:Drivers/FEEPROM/f_eeprom.c ****           {
+ 867              		.loc 1 223 0
+ 868 014a AC42     		cmp	r4, r5
+ 869 014c F3D0     		beq	.L79
+ 226:Drivers/FEEPROM/f_eeprom.c ****             /* In case variable corresponding to the virtual address was found */
+ 870              		.loc 1 226 0
+ 871 014e 1449     		ldr	r1, .L96+20
+ 872 0150 2046     		mov	r0, r4
+ 873 0152 FFF7FEFF 		bl	EE_ReadVariable
+ 874              	.LVL147:
+ 228:Drivers/FEEPROM/f_eeprom.c ****             {
+ 875              		.loc 1 228 0
+ 876 0156 0128     		cmp	r0, #1
+ARM GAS  /tmp/ccxupRjh.s 			page 29
+
+
+ 877 0158 EDD0     		beq	.L79
+ 231:Drivers/FEEPROM/f_eeprom.c ****               /* If program operation was failed, a Flash error code is returned */
+ 878              		.loc 1 231 0
+ 879 015a 114B     		ldr	r3, .L96+20
+ 880 015c 1988     		ldrh	r1, [r3]
+ 881 015e 2046     		mov	r0, r4
+ 882              	.LVL148:
+ 883 0160 FFF7FEFF 		bl	EE_VerifyPageFullWriteVariable
+ 884              	.LVL149:
+ 233:Drivers/FEEPROM/f_eeprom.c ****               {
+ 885              		.loc 1 233 0
+ 886 0164 0346     		mov	r3, r0
+ 887 0166 0028     		cmp	r0, #0
+ 888 0168 E5D0     		beq	.L79
+ 889 016a 63E7     		b	.L68
+ 890              	.LVL150:
+ 891              	.L94:
+ 241:Drivers/FEEPROM/f_eeprom.c ****         /* If program operation was failed, a Flash error code is returned */
+ 892              		.loc 1 241 0
+ 893 016c 0022     		movs	r2, #0
+ 894 016e 0023     		movs	r3, #0
+ 895 0170 0749     		ldr	r1, .L96+4
+ 896 0172 0120     		movs	r0, #1
+ 897 0174 FFF7FEFF 		bl	HAL_FLASH_Program
+ 898              	.LVL151:
+ 899 0178 83B2     		uxth	r3, r0
+ 900              	.LVL152:
+ 243:Drivers/FEEPROM/f_eeprom.c ****         {
+ 901              		.loc 1 243 0
+ 902 017a 002B     		cmp	r3, #0
+ 903 017c 7FF45AAF 		bne	.L68
+ 248:Drivers/FEEPROM/f_eeprom.c ****         /* If erase operation was failed, a Flash error code is returned */
+ 904              		.loc 1 248 0
+ 905 0180 0549     		ldr	r1, .L96+12
+ 906 0182 0448     		ldr	r0, .L96+8
+ 907 0184 FFF7FEFF 		bl	HAL_FLASHEx_Erase
+ 908              	.LVL153:
+ 909 0188 83B2     		uxth	r3, r0
+ 910              	.LVL154:
+ 911 018a 53E7     		b	.L68
+ 912              	.L97:
+ 913              		.align	2
+ 914              	.L96:
+ 915 018c 00E80308 		.word	134473728
+ 916 0190 00F00308 		.word	134475776
+ 917 0194 00000000 		.word	.LANCHOR1
+ 918 0198 00000000 		.word	.LANCHOR2
+ 919 019c 06E80308 		.word	134473734
+ 920 01a0 00000000 		.word	.LANCHOR0
+ 921 01a4 06F00308 		.word	134475782
+ 922              		.cfi_endproc
+ 923              	.LFE66:
+ 925              		.global	DataVar
+ 926              		.global	PAGEError
+ 927              		.section	.bss.DataVar,"aw",%nobits
+ 928              		.align	1
+ 929              		.set	.LANCHOR0,. + 0
+ARM GAS  /tmp/ccxupRjh.s 			page 30
+
+
+ 932              	DataVar:
+ 933 0000 0000     		.space	2
+ 934              		.section	.bss.EraseInitStruct,"aw",%nobits
+ 935              		.align	2
+ 936              		.set	.LANCHOR1,. + 0
+ 939              	EraseInitStruct:
+ 940 0000 00000000 		.space	16
+ 940      00000000 
+ 940      00000000 
+ 940      00000000 
+ 941              		.section	.bss.PAGEError,"aw",%nobits
+ 942              		.align	2
+ 943              		.set	.LANCHOR2,. + 0
+ 946              	PAGEError:
+ 947 0000 00000000 		.space	4
+ 948              		.text
+ 949              	.Letext0:
+ 950              		.file 2 "/usr/arm-none-eabi/include/machine/_default_types.h"
+ 951              		.file 3 "/usr/arm-none-eabi/include/sys/_stdint.h"
+ 952              		.file 4 "Drivers/CMSIS/Include/core_cm3.h"
+ 953              		.file 5 "Drivers/CMSIS/Device/ST/STM32F1xx/Include/system_stm32f1xx.h"
+ 954              		.file 6 "/usr/arm-none-eabi/include/sys/lock.h"
+ 955              		.file 7 "/usr/arm-none-eabi/include/sys/_types.h"
+ 956              		.file 8 "/usr/lib/gcc/arm-none-eabi/7.3.1/include/stddef.h"
+ 957              		.file 9 "/usr/arm-none-eabi/include/sys/reent.h"
+ 958              		.file 10 "Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_def.h"
+ 959              		.file 11 "Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_flash_ex.h"
+ 960              		.file 12 "Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal.h"
+ 961              		.file 13 "Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_flash.h"
+ARM GAS  /tmp/ccxupRjh.s 			page 31
+
+
+DEFINED SYMBOLS
+                            *ABS*:0000000000000000 f_eeprom.c
+     /tmp/ccxupRjh.s:16     .text.EE_FindValidPage:0000000000000000 $t
+     /tmp/ccxupRjh.s:22     .text.EE_FindValidPage:0000000000000000 EE_FindValidPage
+     /tmp/ccxupRjh.s:108    .text.EE_FindValidPage:0000000000000048 $d
+     /tmp/ccxupRjh.s:114    .text.EE_VerifyPageFullWriteVariable:0000000000000000 $t
+     /tmp/ccxupRjh.s:120    .text.EE_VerifyPageFullWriteVariable:0000000000000000 EE_VerifyPageFullWriteVariable
+     /tmp/ccxupRjh.s:208    .text.EE_VerifyPageFullWriteVariable:0000000000000058 $d
+     /tmp/ccxupRjh.s:213    .text.EE_ReadVariable:0000000000000000 $t
+     /tmp/ccxupRjh.s:220    .text.EE_ReadVariable:0000000000000000 EE_ReadVariable
+     /tmp/ccxupRjh.s:294    .text.EE_ReadVariable:000000000000003c $d
+     /tmp/ccxupRjh.s:300    .text.EE_PageTransfer:0000000000000000 $t
+     /tmp/ccxupRjh.s:306    .text.EE_PageTransfer:0000000000000000 EE_PageTransfer
+     /tmp/ccxupRjh.s:459    .text.EE_PageTransfer:000000000000009c $d
+     /tmp/ccxupRjh.s:468    .text.EE_WriteVariable:0000000000000000 $t
+     /tmp/ccxupRjh.s:475    .text.EE_WriteVariable:0000000000000000 EE_WriteVariable
+     /tmp/ccxupRjh.s:513    .text.EE_Format:0000000000000000 $t
+     /tmp/ccxupRjh.s:520    .text.EE_Format:0000000000000000 EE_Format
+     /tmp/ccxupRjh.s:578    .text.EE_Format:0000000000000038 $d
+     /tmp/ccxupRjh.s:586    .text.EE_Init:0000000000000000 $t
+     /tmp/ccxupRjh.s:593    .text.EE_Init:0000000000000000 EE_Init
+     /tmp/ccxupRjh.s:915    .text.EE_Init:000000000000018c $d
+     /tmp/ccxupRjh.s:932    .bss.DataVar:0000000000000000 DataVar
+     /tmp/ccxupRjh.s:946    .bss.PAGEError:0000000000000000 PAGEError
+     /tmp/ccxupRjh.s:928    .bss.DataVar:0000000000000000 $d
+     /tmp/ccxupRjh.s:935    .bss.EraseInitStruct:0000000000000000 $d
+     /tmp/ccxupRjh.s:939    .bss.EraseInitStruct:0000000000000000 EraseInitStruct
+     /tmp/ccxupRjh.s:942    .bss.PAGEError:0000000000000000 $d
+
+UNDEFINED SYMBOLS
+HAL_FLASH_Program
+HAL_FLASHEx_Erase

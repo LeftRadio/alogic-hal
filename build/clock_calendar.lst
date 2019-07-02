@@ -1,0 +1,1046 @@
+ARM GAS  /tmp/cc2L3Cck.s 			page 1
+
+
+   1              		.cpu cortex-m3
+   2              		.eabi_attribute 20, 1
+   3              		.eabi_attribute 21, 1
+   4              		.eabi_attribute 23, 3
+   5              		.eabi_attribute 24, 1
+   6              		.eabi_attribute 25, 1
+   7              		.eabi_attribute 26, 1
+   8              		.eabi_attribute 30, 1
+   9              		.eabi_attribute 34, 1
+  10              		.eabi_attribute 18, 4
+  11              		.file	"clock_calendar.c"
+  12              		.text
+  13              	.Ltext0:
+  14              		.cfi_sections	.debug_frame
+  15              		.section	.text.RTC_IsLeapYear,"ax",%progbits
+  16              		.align	1
+  17              		.syntax unified
+  18              		.thumb
+  19              		.thumb_func
+  20              		.fpu softvfp
+  22              	RTC_IsLeapYear:
+  23              	.LFB67:
+  24              		.file 1 "Drivers/RTC/clock_calendar.c"
+   1:Drivers/RTC/clock_calendar.c **** /**
+   2:Drivers/RTC/clock_calendar.c ****   ******************************************************************************
+   3:Drivers/RTC/clock_calendar.c ****   * @file RTC/src/clock_calendar.c 
+   4:Drivers/RTC/clock_calendar.c ****   * @author  MCD Application Team
+   5:Drivers/RTC/clock_calendar.c ****   * @version  V2.0.0
+   6:Drivers/RTC/clock_calendar.c ****   * @date  04/27/2009
+   7:Drivers/RTC/clock_calendar.c ****   * @brief  Clock Calendar basic routines
+   8:Drivers/RTC/clock_calendar.c ****   ******************************************************************************
+   9:Drivers/RTC/clock_calendar.c ****   * @copy
+  10:Drivers/RTC/clock_calendar.c ****   *
+  11:Drivers/RTC/clock_calendar.c ****   * THE PRESENT FIRMWARE WHICH IS FOR GUIDANCE ONLY AIMS AT PROVIDING CUSTOMERS
+  12:Drivers/RTC/clock_calendar.c ****   * WITH CODING INFORMATION REGARDING THEIR PRODUCTS IN ORDER FOR THEM TO SAVE
+  13:Drivers/RTC/clock_calendar.c ****   * TIME. AS A RESULT, STMICROELECTRONICS SHALL NOT BE HELD LIABLE FOR ANY
+  14:Drivers/RTC/clock_calendar.c ****   * DIRECT, INDIRECT OR CONSEQUENTIAL DAMAGES WITH RESPECT TO ANY CLAIMS ARISING
+  15:Drivers/RTC/clock_calendar.c ****   * FROM THE CONTENT OF SUCH FIRMWARE AND/OR THE USE MADE BY CUSTOMERS OF THE
+  16:Drivers/RTC/clock_calendar.c ****   * CODING INFORMATION CONTAINED HEREIN IN CONNECTION WITH THEIR PRODUCTS.
+  17:Drivers/RTC/clock_calendar.c ****   *
+  18:Drivers/RTC/clock_calendar.c ****   * <h2><center>&copy; COPYRIGHT 2009 STMicroelectronics</center></h2>
+  19:Drivers/RTC/clock_calendar.c ****   */ 
+  20:Drivers/RTC/clock_calendar.c **** 
+  21:Drivers/RTC/clock_calendar.c **** 
+  22:Drivers/RTC/clock_calendar.c **** /* Includes ------------------------------------------------------------------*/
+  23:Drivers/RTC/clock_calendar.c **** #include "clock_calendar.h"
+  24:Drivers/RTC/clock_calendar.c **** 
+  25:Drivers/RTC/clock_calendar.c **** /* Private variables--------------------------------------------------------- */
+  26:Drivers/RTC/clock_calendar.c **** char *Months_Names[]={ "Январь", "Февраль", "Март", "Апрель", "Май", "И�
+  27:Drivers/RTC/clock_calendar.c **** "Сентябрь", "Октябрь", "Ноябрь", "Декабрь" };
+  28:Drivers/RTC/clock_calendar.c **** 
+  29:Drivers/RTC/clock_calendar.c **** char *WeekDays_Names[]={ "Воскресенье", "Понедельник", "Вторник", "С�
+  30:Drivers/RTC/clock_calendar.c **** 
+  31:Drivers/RTC/clock_calendar.c **** 
+  32:Drivers/RTC/clock_calendar.c **** /*Structure variable declaration for system time, system date,
+  33:Drivers/RTC/clock_calendar.c **** alarm time, alarm date */
+  34:Drivers/RTC/clock_calendar.c **** 
+ARM GAS  /tmp/cc2L3Cck.s 			page 2
+
+
+  35:Drivers/RTC/clock_calendar.c **** uint8_t s_WeekDay = 0;
+  36:Drivers/RTC/clock_calendar.c **** 
+  37:Drivers/RTC/clock_calendar.c **** uint16_t SummerTimeCorrect;
+  38:Drivers/RTC/clock_calendar.c **** 
+  39:Drivers/RTC/clock_calendar.c **** /* Private typedef -----------------------------------------------------------*/
+  40:Drivers/RTC/clock_calendar.c **** /* Private define ------------------------------------------------------------*/
+  41:Drivers/RTC/clock_calendar.c **** /* Private macro -------------------------------------------------------------*/
+  42:Drivers/RTC/clock_calendar.c **** /* Private variables ---------------------------------------------------------*/
+  43:Drivers/RTC/clock_calendar.c **** /* Private function prototypes -----------------------------------------------*/
+  44:Drivers/RTC/clock_calendar.c **** /* Private functions ---------------------------------------------------------*/
+  45:Drivers/RTC/clock_calendar.c **** 
+  46:Drivers/RTC/clock_calendar.c **** /**
+  47:Drivers/RTC/clock_calendar.c ****   * @brief  _save_date_to_backup
+  48:Drivers/RTC/clock_calendar.c ****   * @param  None
+  49:Drivers/RTC/clock_calendar.c ****   * @retval : None
+  50:Drivers/RTC/clock_calendar.c ****   */
+  51:Drivers/RTC/clock_calendar.c **** static void _save_date_to_backup(RTC_DateTypeDef* date) {
+  52:Drivers/RTC/clock_calendar.c ****     HAL_PWR_EnableBkUpAccess();
+  53:Drivers/RTC/clock_calendar.c ****     HAL_RTCEx_BKUPWrite(&hrtc, RTC_BKP_DR2, date->Month);
+  54:Drivers/RTC/clock_calendar.c ****     HAL_RTCEx_BKUPWrite(&hrtc, RTC_BKP_DR3, date->Date);
+  55:Drivers/RTC/clock_calendar.c ****     HAL_RTCEx_BKUPWrite(&hrtc, RTC_BKP_DR4, date->Year);
+  56:Drivers/RTC/clock_calendar.c ****     HAL_RTCEx_BKUPWrite(&hrtc, RTC_BKP_DR1, CONFIGURATION_DONE);
+  57:Drivers/RTC/clock_calendar.c ****     HAL_PWR_DisableBkUpAccess();
+  58:Drivers/RTC/clock_calendar.c **** }
+  59:Drivers/RTC/clock_calendar.c **** 
+  60:Drivers/RTC/clock_calendar.c **** /**
+  61:Drivers/RTC/clock_calendar.c ****   * @brief  Check whether the passed year is Leap or not.
+  62:Drivers/RTC/clock_calendar.c ****   * @param  nYear  year to check
+  63:Drivers/RTC/clock_calendar.c ****   * @retval 1: leap year
+  64:Drivers/RTC/clock_calendar.c ****   *         0: not leap year
+  65:Drivers/RTC/clock_calendar.c ****   */
+  66:Drivers/RTC/clock_calendar.c **** static uint8_t RTC_IsLeapYear(uint16_t year) {
+  25              		.loc 1 66 0
+  26              		.cfi_startproc
+  27              		@ args = 0, pretend = 0, frame = 0
+  28              		@ frame_needed = 0, uses_anonymous_args = 0
+  29              		@ link register save eliminated.
+  30              	.LVL0:
+  67:Drivers/RTC/clock_calendar.c ****     if((year % 4U) != 0U) {
+  31              		.loc 1 67 0
+  32 0000 10F0030F 		tst	r0, #3
+  33 0004 16D1     		bne	.L3
+  68:Drivers/RTC/clock_calendar.c ****         return 0U;
+  69:Drivers/RTC/clock_calendar.c ****     }  
+  70:Drivers/RTC/clock_calendar.c ****     if((year % 100U) != 0U) {
+  34              		.loc 1 70 0
+  35 0006 0D4B     		ldr	r3, .L7
+  36 0008 A3FB0023 		umull	r2, r3, r3, r0
+  37 000c 5B09     		lsrs	r3, r3, #5
+  38 000e 6422     		movs	r2, #100
+  39 0010 02FB1303 		mls	r3, r2, r3, r0
+  40 0014 9BB2     		uxth	r3, r3
+  41 0016 7BB9     		cbnz	r3, .L4
+  71:Drivers/RTC/clock_calendar.c ****         return 1U;
+  72:Drivers/RTC/clock_calendar.c ****     }  
+  73:Drivers/RTC/clock_calendar.c ****     if((year % 400U) == 0U) {
+  42              		.loc 1 73 0
+ARM GAS  /tmp/cc2L3Cck.s 			page 3
+
+
+  43 0018 084B     		ldr	r3, .L7
+  44 001a A3FB0023 		umull	r2, r3, r3, r0
+  45 001e DB09     		lsrs	r3, r3, #7
+  46 0020 4FF4C872 		mov	r2, #400
+  47 0024 02FB1300 		mls	r0, r2, r3, r0
+  48              	.LVL1:
+  49 0028 80B2     		uxth	r0, r0
+  50 002a 08B1     		cbz	r0, .L6
+  74:Drivers/RTC/clock_calendar.c ****         return 1U;
+  75:Drivers/RTC/clock_calendar.c ****     }
+  76:Drivers/RTC/clock_calendar.c ****     else {
+  77:Drivers/RTC/clock_calendar.c ****         return 0U;
+  51              		.loc 1 77 0
+  52 002c 0020     		movs	r0, #0
+  78:Drivers/RTC/clock_calendar.c ****     }
+  79:Drivers/RTC/clock_calendar.c **** }
+  53              		.loc 1 79 0
+  54 002e 7047     		bx	lr
+  55              	.L6:
+  74:Drivers/RTC/clock_calendar.c ****         return 1U;
+  56              		.loc 1 74 0
+  57 0030 0120     		movs	r0, #1
+  58 0032 7047     		bx	lr
+  59              	.LVL2:
+  60              	.L3:
+  68:Drivers/RTC/clock_calendar.c ****     }  
+  61              		.loc 1 68 0
+  62 0034 0020     		movs	r0, #0
+  63              	.LVL3:
+  64 0036 7047     		bx	lr
+  65              	.LVL4:
+  66              	.L4:
+  71:Drivers/RTC/clock_calendar.c ****     }  
+  67              		.loc 1 71 0
+  68 0038 0120     		movs	r0, #1
+  69              	.LVL5:
+  70 003a 7047     		bx	lr
+  71              	.L8:
+  72              		.align	2
+  73              	.L7:
+  74 003c 1F85EB51 		.word	1374389535
+  75              		.cfi_endproc
+  76              	.LFE67:
+  78              		.section	.text._save_date_to_backup,"ax",%progbits
+  79              		.align	1
+  80              		.syntax unified
+  81              		.thumb
+  82              		.thumb_func
+  83              		.fpu softvfp
+  85              	_save_date_to_backup:
+  86              	.LFB66:
+  51:Drivers/RTC/clock_calendar.c ****     HAL_PWR_EnableBkUpAccess();
+  87              		.loc 1 51 0
+  88              		.cfi_startproc
+  89              		@ args = 0, pretend = 0, frame = 0
+  90              		@ frame_needed = 0, uses_anonymous_args = 0
+  91              	.LVL6:
+ARM GAS  /tmp/cc2L3Cck.s 			page 4
+
+
+  92 0000 38B5     		push	{r3, r4, r5, lr}
+  93              	.LCFI0:
+  94              		.cfi_def_cfa_offset 16
+  95              		.cfi_offset 3, -16
+  96              		.cfi_offset 4, -12
+  97              		.cfi_offset 5, -8
+  98              		.cfi_offset 14, -4
+  99 0002 0546     		mov	r5, r0
+  52:Drivers/RTC/clock_calendar.c ****     HAL_RTCEx_BKUPWrite(&hrtc, RTC_BKP_DR2, date->Month);
+ 100              		.loc 1 52 0
+ 101 0004 FFF7FEFF 		bl	HAL_PWR_EnableBkUpAccess
+ 102              	.LVL7:
+  53:Drivers/RTC/clock_calendar.c ****     HAL_RTCEx_BKUPWrite(&hrtc, RTC_BKP_DR3, date->Date);
+ 103              		.loc 1 53 0
+ 104 0008 0C4C     		ldr	r4, .L11
+ 105 000a 6A78     		ldrb	r2, [r5, #1]	@ zero_extendqisi2
+ 106 000c 0221     		movs	r1, #2
+ 107 000e 2046     		mov	r0, r4
+ 108 0010 FFF7FEFF 		bl	HAL_RTCEx_BKUPWrite
+ 109              	.LVL8:
+  54:Drivers/RTC/clock_calendar.c ****     HAL_RTCEx_BKUPWrite(&hrtc, RTC_BKP_DR4, date->Year);
+ 110              		.loc 1 54 0
+ 111 0014 AA78     		ldrb	r2, [r5, #2]	@ zero_extendqisi2
+ 112 0016 0321     		movs	r1, #3
+ 113 0018 2046     		mov	r0, r4
+ 114 001a FFF7FEFF 		bl	HAL_RTCEx_BKUPWrite
+ 115              	.LVL9:
+  55:Drivers/RTC/clock_calendar.c ****     HAL_RTCEx_BKUPWrite(&hrtc, RTC_BKP_DR1, CONFIGURATION_DONE);
+ 116              		.loc 1 55 0
+ 117 001e EA78     		ldrb	r2, [r5, #3]	@ zero_extendqisi2
+ 118 0020 0421     		movs	r1, #4
+ 119 0022 2046     		mov	r0, r4
+ 120 0024 FFF7FEFF 		bl	HAL_RTCEx_BKUPWrite
+ 121              	.LVL10:
+  56:Drivers/RTC/clock_calendar.c ****     HAL_PWR_DisableBkUpAccess();
+ 122              		.loc 1 56 0
+ 123 0028 4AF6AA22 		movw	r2, #43690
+ 124 002c 0121     		movs	r1, #1
+ 125 002e 2046     		mov	r0, r4
+ 126 0030 FFF7FEFF 		bl	HAL_RTCEx_BKUPWrite
+ 127              	.LVL11:
+  57:Drivers/RTC/clock_calendar.c **** }
+ 128              		.loc 1 57 0
+ 129 0034 FFF7FEFF 		bl	HAL_PWR_DisableBkUpAccess
+ 130              	.LVL12:
+  58:Drivers/RTC/clock_calendar.c **** 
+ 131              		.loc 1 58 0
+ 132 0038 38BD     		pop	{r3, r4, r5, pc}
+ 133              	.LVL13:
+ 134              	.L12:
+ 135 003a 00BF     		.align	2
+ 136              	.L11:
+ 137 003c 00000000 		.word	hrtc
+ 138              		.cfi_endproc
+ 139              	.LFE66:
+ 141              		.section	.text.RTC_Configuration,"ax",%progbits
+ 142              		.align	1
+ARM GAS  /tmp/cc2L3Cck.s 			page 5
+
+
+ 143              		.global	RTC_Configuration
+ 144              		.syntax unified
+ 145              		.thumb
+ 146              		.thumb_func
+ 147              		.fpu softvfp
+ 149              	RTC_Configuration:
+ 150              	.LFB68:
+  80:Drivers/RTC/clock_calendar.c **** 
+  81:Drivers/RTC/clock_calendar.c **** 
+  82:Drivers/RTC/clock_calendar.c **** /**
+  83:Drivers/RTC/clock_calendar.c ****   * @brief  COnfiguration of RTC Registers, Selection and Enabling of 
+  84:Drivers/RTC/clock_calendar.c ****   *   RTC clock
+  85:Drivers/RTC/clock_calendar.c ****   * @param  None
+  86:Drivers/RTC/clock_calendar.c ****   * @retval : None
+  87:Drivers/RTC/clock_calendar.c ****   */
+  88:Drivers/RTC/clock_calendar.c **** void RTC_Configuration(void) {
+ 151              		.loc 1 88 0
+ 152              		.cfi_startproc
+ 153              		@ args = 0, pretend = 0, frame = 8
+ 154              		@ frame_needed = 0, uses_anonymous_args = 0
+ 155 0000 10B5     		push	{r4, lr}
+ 156              	.LCFI1:
+ 157              		.cfi_def_cfa_offset 8
+ 158              		.cfi_offset 4, -8
+ 159              		.cfi_offset 14, -4
+ 160 0002 82B0     		sub	sp, sp, #8
+ 161              	.LCFI2:
+ 162              		.cfi_def_cfa_offset 16
+  89:Drivers/RTC/clock_calendar.c ****   	// RTC_TimeTypeDef time;
+  90:Drivers/RTC/clock_calendar.c ****     RTC_DateTypeDef date;
+  91:Drivers/RTC/clock_calendar.c ****     /* */
+  92:Drivers/RTC/clock_calendar.c ****   	if(HAL_RTCEx_BKUPRead(&hrtc, RTC_BKP_DR1) == CONFIGURATION_RESET)	{
+ 163              		.loc 1 92 0
+ 164 0004 0121     		movs	r1, #1
+ 165 0006 1648     		ldr	r0, .L17
+ 166 0008 FFF7FEFF 		bl	HAL_RTCEx_BKUPRead
+ 167              	.LVL14:
+ 168 000c F8B1     		cbz	r0, .L16
+ 169              	.L14:
+  93:Drivers/RTC/clock_calendar.c ****         /* */
+  94:Drivers/RTC/clock_calendar.c ****         HAL_RTC_GetDate(&hrtc, &date, RTC_FORMAT_BCD);  			
+  95:Drivers/RTC/clock_calendar.c ****         _save_date_to_backup(&date);	
+  96:Drivers/RTC/clock_calendar.c ****   	}	
+  97:Drivers/RTC/clock_calendar.c **** 
+  98:Drivers/RTC/clock_calendar.c ****   	/* Check if how many days are elapsed in power down/Low Power Mode-
+  99:Drivers/RTC/clock_calendar.c ****      	   Updates Date that many Times*/
+ 100:Drivers/RTC/clock_calendar.c ****   	// CheckForDaysElapsed();
+ 101:Drivers/RTC/clock_calendar.c **** 
+ 102:Drivers/RTC/clock_calendar.c ****   	date.Month = HAL_RTCEx_BKUPRead(&hrtc, RTC_BKP_DR2);
+ 170              		.loc 1 102 0
+ 171 000e 144C     		ldr	r4, .L17
+ 172 0010 0221     		movs	r1, #2
+ 173 0012 2046     		mov	r0, r4
+ 174 0014 FFF7FEFF 		bl	HAL_RTCEx_BKUPRead
+ 175              	.LVL15:
+ 176 0018 8DF80500 		strb	r0, [sp, #5]
+ 103:Drivers/RTC/clock_calendar.c ****   	date.Date = HAL_RTCEx_BKUPRead(&hrtc, RTC_BKP_DR3);
+ARM GAS  /tmp/cc2L3Cck.s 			page 6
+
+
+ 177              		.loc 1 103 0
+ 178 001c 0321     		movs	r1, #3
+ 179 001e 2046     		mov	r0, r4
+ 180 0020 FFF7FEFF 		bl	HAL_RTCEx_BKUPRead
+ 181              	.LVL16:
+ 182 0024 8DF80600 		strb	r0, [sp, #6]
+ 104:Drivers/RTC/clock_calendar.c ****   	date.Year = HAL_RTCEx_BKUPRead(&hrtc, RTC_BKP_DR4);
+ 183              		.loc 1 104 0
+ 184 0028 0421     		movs	r1, #4
+ 185 002a 2046     		mov	r0, r4
+ 186 002c FFF7FEFF 		bl	HAL_RTCEx_BKUPRead
+ 187              	.LVL17:
+ 188 0030 8DF80700 		strb	r0, [sp, #7]
+ 105:Drivers/RTC/clock_calendar.c ****   	SummerTimeCorrect = HAL_RTCEx_BKUPRead(&hrtc, RTC_BKP_DR7);
+ 189              		.loc 1 105 0
+ 190 0034 0721     		movs	r1, #7
+ 191 0036 2046     		mov	r0, r4
+ 192 0038 FFF7FEFF 		bl	HAL_RTCEx_BKUPRead
+ 193              	.LVL18:
+ 194 003c 094B     		ldr	r3, .L17+4
+ 195 003e 1880     		strh	r0, [r3]	@ movhi
+ 106:Drivers/RTC/clock_calendar.c **** 
+ 107:Drivers/RTC/clock_calendar.c ****     HAL_RTC_SetDate(&hrtc, &date, RTC_FORMAT_BCD);
+ 196              		.loc 1 107 0
+ 197 0040 0122     		movs	r2, #1
+ 198 0042 01A9     		add	r1, sp, #4
+ 199 0044 2046     		mov	r0, r4
+ 200 0046 FFF7FEFF 		bl	HAL_RTC_SetDate
+ 201              	.LVL19:
+ 108:Drivers/RTC/clock_calendar.c **** }
+ 202              		.loc 1 108 0
+ 203 004a 02B0     		add	sp, sp, #8
+ 204              	.LCFI3:
+ 205              		.cfi_remember_state
+ 206              		.cfi_def_cfa_offset 8
+ 207              		@ sp needed
+ 208 004c 10BD     		pop	{r4, pc}
+ 209              	.L16:
+ 210              	.LCFI4:
+ 211              		.cfi_restore_state
+  94:Drivers/RTC/clock_calendar.c ****         _save_date_to_backup(&date);	
+ 212              		.loc 1 94 0
+ 213 004e 0122     		movs	r2, #1
+ 214 0050 01A9     		add	r1, sp, #4
+ 215 0052 0348     		ldr	r0, .L17
+ 216 0054 FFF7FEFF 		bl	HAL_RTC_GetDate
+ 217              	.LVL20:
+  95:Drivers/RTC/clock_calendar.c ****   	}	
+ 218              		.loc 1 95 0
+ 219 0058 01A8     		add	r0, sp, #4
+ 220 005a FFF7FEFF 		bl	_save_date_to_backup
+ 221              	.LVL21:
+ 222 005e D6E7     		b	.L14
+ 223              	.L18:
+ 224              		.align	2
+ 225              	.L17:
+ 226 0060 00000000 		.word	hrtc
+ARM GAS  /tmp/cc2L3Cck.s 			page 7
+
+
+ 227 0064 00000000 		.word	SummerTimeCorrect
+ 228              		.cfi_endproc
+ 229              	.LFE68:
+ 231              		.section	.text.SetTime,"ax",%progbits
+ 232              		.align	1
+ 233              		.global	SetTime
+ 234              		.syntax unified
+ 235              		.thumb
+ 236              		.thumb_func
+ 237              		.fpu softvfp
+ 239              	SetTime:
+ 240              	.LFB69:
+ 109:Drivers/RTC/clock_calendar.c **** 
+ 110:Drivers/RTC/clock_calendar.c **** /**
+ 111:Drivers/RTC/clock_calendar.c ****   * @brief  Sets the RTC Current Counter Value
+ 112:Drivers/RTC/clock_calendar.c ****   * @param Hour, Minute and Seconds data
+ 113:Drivers/RTC/clock_calendar.c ****   * @retval : None
+ 114:Drivers/RTC/clock_calendar.c ****   */
+ 115:Drivers/RTC/clock_calendar.c **** void SetTime(uint8_t Hour, uint8_t Minute, uint8_t Seconds) {
+ 241              		.loc 1 115 0
+ 242              		.cfi_startproc
+ 243              		@ args = 0, pretend = 0, frame = 8
+ 244              		@ frame_needed = 0, uses_anonymous_args = 0
+ 245              	.LVL22:
+ 246 0000 00B5     		push	{lr}
+ 247              	.LCFI5:
+ 248              		.cfi_def_cfa_offset 4
+ 249              		.cfi_offset 14, -4
+ 250 0002 83B0     		sub	sp, sp, #12
+ 251              	.LCFI6:
+ 252              		.cfi_def_cfa_offset 16
+ 116:Drivers/RTC/clock_calendar.c ****     /* */
+ 117:Drivers/RTC/clock_calendar.c ****     RTC_TimeTypeDef time = {.Hours = Hour, .Minutes = Minute, .Seconds = Seconds};
+ 253              		.loc 1 117 0
+ 254 0004 8DF80400 		strb	r0, [sp, #4]
+ 255 0008 8DF80510 		strb	r1, [sp, #5]
+ 256 000c 8DF80620 		strb	r2, [sp, #6]
+ 118:Drivers/RTC/clock_calendar.c ****     HAL_RTC_SetTime(&hrtc, &time, RTC_FORMAT_BCD);
+ 257              		.loc 1 118 0
+ 258 0010 0122     		movs	r2, #1
+ 259              	.LVL23:
+ 260 0012 01A9     		add	r1, sp, #4
+ 261              	.LVL24:
+ 262 0014 0248     		ldr	r0, .L21
+ 263              	.LVL25:
+ 264 0016 FFF7FEFF 		bl	HAL_RTC_SetTime
+ 265              	.LVL26:
+ 119:Drivers/RTC/clock_calendar.c **** }
+ 266              		.loc 1 119 0
+ 267 001a 03B0     		add	sp, sp, #12
+ 268              	.LCFI7:
+ 269              		.cfi_def_cfa_offset 4
+ 270              		@ sp needed
+ 271 001c 5DF804FB 		ldr	pc, [sp], #4
+ 272              	.L22:
+ 273              		.align	2
+ 274              	.L21:
+ARM GAS  /tmp/cc2L3Cck.s 			page 8
+
+
+ 275 0020 00000000 		.word	hrtc
+ 276              		.cfi_endproc
+ 277              	.LFE69:
+ 279              		.section	.text.SetDate,"ax",%progbits
+ 280              		.align	1
+ 281              		.global	SetDate
+ 282              		.syntax unified
+ 283              		.thumb
+ 284              		.thumb_func
+ 285              		.fpu softvfp
+ 287              	SetDate:
+ 288              	.LFB70:
+ 120:Drivers/RTC/clock_calendar.c **** 
+ 121:Drivers/RTC/clock_calendar.c **** /**
+ 122:Drivers/RTC/clock_calendar.c ****   * @brief  Sets the RTC Date(DD/MM/YYYY)
+ 123:Drivers/RTC/clock_calendar.c ****   * @param DD,MM,YYYY
+ 124:Drivers/RTC/clock_calendar.c ****   * @retval : None
+ 125:Drivers/RTC/clock_calendar.c ****   */
+ 126:Drivers/RTC/clock_calendar.c **** void SetDate(uint8_t Day, uint8_t Month, uint16_t Year) {
+ 289              		.loc 1 126 0
+ 290              		.cfi_startproc
+ 291              		@ args = 0, pretend = 0, frame = 8
+ 292              		@ frame_needed = 0, uses_anonymous_args = 0
+ 293              	.LVL27:
+ 294 0000 00B5     		push	{lr}
+ 295              	.LCFI8:
+ 296              		.cfi_def_cfa_offset 4
+ 297              		.cfi_offset 14, -4
+ 298 0002 83B0     		sub	sp, sp, #12
+ 299              	.LCFI9:
+ 300              		.cfi_def_cfa_offset 16
+ 127:Drivers/RTC/clock_calendar.c ****   RTC_DateTypeDef date;
+ 128:Drivers/RTC/clock_calendar.c **** 
+ 129:Drivers/RTC/clock_calendar.c ****   /*Check if the date entered by the user is correct or not, Displays an error
+ 130:Drivers/RTC/clock_calendar.c ****     message if date is incorrect  */
+ 131:Drivers/RTC/clock_calendar.c ****   if((( Month==4 || Month==6 || Month==9 || Month==11) && Day ==31) || (Month==2 && Day==31)|| (Mon
+ 301              		.loc 1 131 0
+ 302 0004 0429     		cmp	r1, #4
+ 303 0006 07D0     		beq	.L24
+ 304              		.loc 1 131 0 is_stmt 0 discriminator 2
+ 305 0008 0629     		cmp	r1, #6
+ 306 000a 05D0     		beq	.L24
+ 307              		.loc 1 131 0 discriminator 4
+ 308 000c 0929     		cmp	r1, #9
+ 309 000e 03D0     		beq	.L24
+ 310              		.loc 1 131 0 discriminator 6
+ 311 0010 0B29     		cmp	r1, #11
+ 312 0012 01D0     		beq	.L24
+ 313              		.loc 1 131 0 discriminator 8
+ 314 0014 0229     		cmp	r1, #2
+ 315 0016 01D1     		bne	.L25
+ 316              	.L24:
+ 317              		.loc 1 131 0 discriminator 9
+ 318 0018 1F28     		cmp	r0, #31
+ 319 001a 12D0     		beq	.L26
+ 320              	.L25:
+ 321              		.loc 1 131 0 discriminator 11
+ARM GAS  /tmp/cc2L3Cck.s 			page 9
+
+
+ 322 001c 0229     		cmp	r1, #2
+ 323 001e 0ED0     		beq	.L31
+ 324              	.L27:
+ 325              		.loc 1 131 0 discriminator 14
+ 326 0020 0229     		cmp	r1, #2
+ 327 0022 01D1     		bne	.L28
+ 328              		.loc 1 131 0 discriminator 15
+ 329 0024 1D28     		cmp	r0, #29
+ 330 0026 15D0     		beq	.L32
+ 331              	.LVL28:
+ 332              	.L28:
+ 132:Drivers/RTC/clock_calendar.c ****       /* */
+ 133:Drivers/RTC/clock_calendar.c ****       HAL_Delay(1000);
+ 134:Drivers/RTC/clock_calendar.c ****       HAL_Delay(1000);
+ 135:Drivers/RTC/clock_calendar.c ****   }
+ 136:Drivers/RTC/clock_calendar.c ****   /* if date entered is correct then set the date */
+ 137:Drivers/RTC/clock_calendar.c ****   else {
+ 138:Drivers/RTC/clock_calendar.c **** 	  /* */
+ 139:Drivers/RTC/clock_calendar.c ****     HAL_RTC_SetDate(&hrtc, &date, RTC_FORMAT_BCD);
+ 333              		.loc 1 139 0 is_stmt 1
+ 334 0028 0122     		movs	r2, #1
+ 335 002a 01A9     		add	r1, sp, #4
+ 336 002c 0C48     		ldr	r0, .L33
+ 337 002e FFF7FEFF 		bl	HAL_RTC_SetDate
+ 338              	.LVL29:
+ 140:Drivers/RTC/clock_calendar.c ****     _save_date_to_backup(&date);
+ 339              		.loc 1 140 0
+ 340 0032 01A8     		add	r0, sp, #4
+ 341 0034 FFF7FEFF 		bl	_save_date_to_backup
+ 342              	.LVL30:
+ 343              	.L23:
+ 141:Drivers/RTC/clock_calendar.c ****   }
+ 142:Drivers/RTC/clock_calendar.c **** }
+ 344              		.loc 1 142 0
+ 345 0038 03B0     		add	sp, sp, #12
+ 346              	.LCFI10:
+ 347              		.cfi_remember_state
+ 348              		.cfi_def_cfa_offset 4
+ 349              		@ sp needed
+ 350 003a 5DF804FB 		ldr	pc, [sp], #4
+ 351              	.LVL31:
+ 352              	.L31:
+ 353              	.LCFI11:
+ 354              		.cfi_restore_state
+ 131:Drivers/RTC/clock_calendar.c ****       /* */
+ 355              		.loc 1 131 0 discriminator 12
+ 356 003e 1E28     		cmp	r0, #30
+ 357 0040 EED1     		bne	.L27
+ 358              	.LVL32:
+ 359              	.L26:
+ 133:Drivers/RTC/clock_calendar.c ****       HAL_Delay(1000);
+ 360              		.loc 1 133 0
+ 361 0042 4FF47A70 		mov	r0, #1000
+ 362 0046 FFF7FEFF 		bl	HAL_Delay
+ 363              	.LVL33:
+ 134:Drivers/RTC/clock_calendar.c ****   }
+ 364              		.loc 1 134 0
+ARM GAS  /tmp/cc2L3Cck.s 			page 10
+
+
+ 365 004a 4FF47A70 		mov	r0, #1000
+ 366 004e FFF7FEFF 		bl	HAL_Delay
+ 367              	.LVL34:
+ 368 0052 F1E7     		b	.L23
+ 369              	.LVL35:
+ 370              	.L32:
+ 131:Drivers/RTC/clock_calendar.c ****       /* */
+ 371              		.loc 1 131 0 discriminator 16
+ 372 0054 1046     		mov	r0, r2
+ 373              	.LVL36:
+ 374 0056 FFF7FEFF 		bl	RTC_IsLeapYear
+ 375              	.LVL37:
+ 376 005a 0028     		cmp	r0, #0
+ 377 005c E4D1     		bne	.L28
+ 378 005e F0E7     		b	.L26
+ 379              	.L34:
+ 380              		.align	2
+ 381              	.L33:
+ 382 0060 00000000 		.word	hrtc
+ 383              		.cfi_endproc
+ 384              	.LFE70:
+ 386              		.section	.text.Date_Compare,"ax",%progbits
+ 387              		.align	1
+ 388              		.global	Date_Compare
+ 389              		.syntax unified
+ 390              		.thumb
+ 391              		.thumb_func
+ 392              		.fpu softvfp
+ 394              	Date_Compare:
+ 395              	.LFB72:
+ 143:Drivers/RTC/clock_calendar.c **** 
+ 144:Drivers/RTC/clock_calendar.c **** /**
+ 145:Drivers/RTC/clock_calendar.c ****   * @brief  Date_Find_Last
+ 146:Drivers/RTC/clock_calendar.c ****   * @param  None
+ 147:Drivers/RTC/clock_calendar.c ****   * @retval None
+ 148:Drivers/RTC/clock_calendar.c ****   */
+ 149:Drivers/RTC/clock_calendar.c **** uint8_t Date_Find_Last(RTC_DateTypeDef Date[], uint8_t NumToCompare, uint8_t Day_or_Month) {
+ 150:Drivers/RTC/clock_calendar.c ****   	RTC_DateTypeDef tData = {0, 0, 0};
+ 151:Drivers/RTC/clock_calendar.c ****   	RTC_DateTypeDef *BigDate = &tData;
+ 152:Drivers/RTC/clock_calendar.c ****   	uint8_t j = 255;
+ 153:Drivers/RTC/clock_calendar.c ****     /* */
+ 154:Drivers/RTC/clock_calendar.c ****   	for(uint8_t i = 0; i < NumToCompare; i++) {
+ 155:Drivers/RTC/clock_calendar.c ****     		if(Date_Compare(Date[i], (*BigDate), Day_or_Month) == 1) {
+ 156:Drivers/RTC/clock_calendar.c ****       			BigDate = &Date[i];
+ 157:Drivers/RTC/clock_calendar.c ****       			j = i;
+ 158:Drivers/RTC/clock_calendar.c ****     		}
+ 159:Drivers/RTC/clock_calendar.c ****   	}
+ 160:Drivers/RTC/clock_calendar.c ****   	return j;
+ 161:Drivers/RTC/clock_calendar.c **** }
+ 162:Drivers/RTC/clock_calendar.c **** 
+ 163:Drivers/RTC/clock_calendar.c **** /**
+ 164:Drivers/RTC/clock_calendar.c ****   * @brief  Date_Find_Last
+ 165:Drivers/RTC/clock_calendar.c ****   * @param  None
+ 166:Drivers/RTC/clock_calendar.c ****   * @retval None
+ 167:Drivers/RTC/clock_calendar.c ****   */
+ 168:Drivers/RTC/clock_calendar.c **** int8_t Date_Compare(RTC_DateTypeDef FirstDate, RTC_DateTypeDef SecondDate, uint8_t Day_or_Month) {
+ 396              		.loc 1 168 0
+ARM GAS  /tmp/cc2L3Cck.s 			page 11
+
+
+ 397              		.cfi_startproc
+ 398              		@ args = 0, pretend = 0, frame = 8
+ 399              		@ frame_needed = 0, uses_anonymous_args = 0
+ 400              		@ link register save eliminated.
+ 401              	.LVL38:
+ 402 0000 82B0     		sub	sp, sp, #8
+ 403              	.LCFI12:
+ 404              		.cfi_def_cfa_offset 8
+ 405 0002 0190     		str	r0, [sp, #4]
+ 406 0004 0091     		str	r1, [sp]
+ 169:Drivers/RTC/clock_calendar.c ****   	/* */
+ 170:Drivers/RTC/clock_calendar.c ****     if(FirstDate.Year > SecondDate.Year) {
+ 407              		.loc 1 170 0
+ 408 0006 000E     		lsrs	r0, r0, #24
+ 409 0008 090E     		lsrs	r1, r1, #24
+ 410 000a 8842     		cmp	r0, r1
+ 411 000c 15D8     		bhi	.L37
+ 171:Drivers/RTC/clock_calendar.c ****         return 1;
+ 172:Drivers/RTC/clock_calendar.c ****     }
+ 173:Drivers/RTC/clock_calendar.c ****   	else if(FirstDate.Year < SecondDate.Year) {
+ 412              		.loc 1 173 0
+ 413 000e 17D3     		bcc	.L38
+ 174:Drivers/RTC/clock_calendar.c ****         return -1;
+ 175:Drivers/RTC/clock_calendar.c ****     }
+ 176:Drivers/RTC/clock_calendar.c ****   	else {
+ 177:Drivers/RTC/clock_calendar.c ****     		if(FirstDate.Month > SecondDate.Month) {
+ 414              		.loc 1 177 0
+ 415 0010 9DF80510 		ldrb	r1, [sp, #5]	@ zero_extendqisi2
+ 416 0014 9DF80130 		ldrb	r3, [sp, #1]	@ zero_extendqisi2
+ 417 0018 9942     		cmp	r1, r3
+ 418 001a 14D8     		bhi	.L39
+ 178:Drivers/RTC/clock_calendar.c ****             return 1;
+ 179:Drivers/RTC/clock_calendar.c ****         }
+ 180:Drivers/RTC/clock_calendar.c ****     		else if(FirstDate.Month < SecondDate.Month) {
+ 419              		.loc 1 180 0
+ 420 001c 15D3     		bcc	.L40
+ 181:Drivers/RTC/clock_calendar.c ****             return -1;
+ 182:Drivers/RTC/clock_calendar.c ****         }
+ 183:Drivers/RTC/clock_calendar.c ****     		else {
+ 184:Drivers/RTC/clock_calendar.c ****       			if(Day_or_Month == 1) {
+ 421              		.loc 1 184 0
+ 422 001e 012A     		cmp	r2, #1
+ 423 0020 16D0     		beq	.L41
+ 185:Drivers/RTC/clock_calendar.c ****                 return 0;
+ 186:Drivers/RTC/clock_calendar.c ****             }
+ 187:Drivers/RTC/clock_calendar.c ****       			else {
+ 188:Drivers/RTC/clock_calendar.c ****         				if(FirstDate.Date > SecondDate.Date) {
+ 424              		.loc 1 188 0
+ 425 0022 9DF80620 		ldrb	r2, [sp, #6]	@ zero_extendqisi2
+ 426              	.LVL39:
+ 427 0026 9DF80230 		ldrb	r3, [sp, #2]	@ zero_extendqisi2
+ 428 002a 9A42     		cmp	r2, r3
+ 429 002c 12D8     		bhi	.L42
+ 189:Drivers/RTC/clock_calendar.c ****                     return 1;
+ 190:Drivers/RTC/clock_calendar.c ****                 }
+ 191:Drivers/RTC/clock_calendar.c ****         				else if(FirstDate.Date < SecondDate.Date) {
+ 430              		.loc 1 191 0
+ARM GAS  /tmp/cc2L3Cck.s 			page 12
+
+
+ 431 002e 01D3     		bcc	.L45
+ 192:Drivers/RTC/clock_calendar.c ****                     return -1;
+ 193:Drivers/RTC/clock_calendar.c ****                 }
+ 194:Drivers/RTC/clock_calendar.c ****         				else {
+ 195:Drivers/RTC/clock_calendar.c ****         					return 0;
+ 432              		.loc 1 195 0
+ 433 0030 0020     		movs	r0, #0
+ 434 0032 03E0     		b	.L36
+ 435              	.L45:
+ 192:Drivers/RTC/clock_calendar.c ****                     return -1;
+ 436              		.loc 1 192 0
+ 437 0034 4FF0FF30 		mov	r0, #-1
+ 438 0038 00E0     		b	.L36
+ 439              	.LVL40:
+ 440              	.L37:
+ 171:Drivers/RTC/clock_calendar.c ****     }
+ 441              		.loc 1 171 0
+ 442 003a 0120     		movs	r0, #1
+ 443              	.LVL41:
+ 444              	.L36:
+ 196:Drivers/RTC/clock_calendar.c ****         				}
+ 197:Drivers/RTC/clock_calendar.c ****       			}
+ 198:Drivers/RTC/clock_calendar.c ****     		}
+ 199:Drivers/RTC/clock_calendar.c ****   	}
+ 200:Drivers/RTC/clock_calendar.c **** }
+ 445              		.loc 1 200 0
+ 446 003c 02B0     		add	sp, sp, #8
+ 447              	.LCFI13:
+ 448              		.cfi_remember_state
+ 449              		.cfi_def_cfa_offset 0
+ 450              		@ sp needed
+ 451 003e 7047     		bx	lr
+ 452              	.LVL42:
+ 453              	.L38:
+ 454              	.LCFI14:
+ 455              		.cfi_restore_state
+ 174:Drivers/RTC/clock_calendar.c ****     }
+ 456              		.loc 1 174 0
+ 457 0040 4FF0FF30 		mov	r0, #-1
+ 458 0044 FAE7     		b	.L36
+ 459              	.L39:
+ 178:Drivers/RTC/clock_calendar.c ****         }
+ 460              		.loc 1 178 0
+ 461 0046 0120     		movs	r0, #1
+ 462 0048 F8E7     		b	.L36
+ 463              	.L40:
+ 181:Drivers/RTC/clock_calendar.c ****         }
+ 464              		.loc 1 181 0
+ 465 004a 4FF0FF30 		mov	r0, #-1
+ 466 004e F5E7     		b	.L36
+ 467              	.L41:
+ 185:Drivers/RTC/clock_calendar.c ****             }
+ 468              		.loc 1 185 0
+ 469 0050 0020     		movs	r0, #0
+ 470 0052 F3E7     		b	.L36
+ 471              	.LVL43:
+ 472              	.L42:
+ARM GAS  /tmp/cc2L3Cck.s 			page 13
+
+
+ 189:Drivers/RTC/clock_calendar.c ****                 }
+ 473              		.loc 1 189 0
+ 474 0054 0120     		movs	r0, #1
+ 475 0056 F1E7     		b	.L36
+ 476              		.cfi_endproc
+ 477              	.LFE72:
+ 479              		.section	.text.Date_Find_Last,"ax",%progbits
+ 480              		.align	1
+ 481              		.global	Date_Find_Last
+ 482              		.syntax unified
+ 483              		.thumb
+ 484              		.thumb_func
+ 485              		.fpu softvfp
+ 487              	Date_Find_Last:
+ 488              	.LFB71:
+ 149:Drivers/RTC/clock_calendar.c ****   	RTC_DateTypeDef tData = {0, 0, 0};
+ 489              		.loc 1 149 0
+ 490              		.cfi_startproc
+ 491              		@ args = 0, pretend = 0, frame = 8
+ 492              		@ frame_needed = 0, uses_anonymous_args = 0
+ 493              	.LVL44:
+ 494 0000 2DE9F047 		push	{r4, r5, r6, r7, r8, r9, r10, lr}
+ 495              	.LCFI15:
+ 496              		.cfi_def_cfa_offset 32
+ 497              		.cfi_offset 4, -32
+ 498              		.cfi_offset 5, -28
+ 499              		.cfi_offset 6, -24
+ 500              		.cfi_offset 7, -20
+ 501              		.cfi_offset 8, -16
+ 502              		.cfi_offset 9, -12
+ 503              		.cfi_offset 10, -8
+ 504              		.cfi_offset 14, -4
+ 505 0004 82B0     		sub	sp, sp, #8
+ 506              	.LCFI16:
+ 507              		.cfi_def_cfa_offset 40
+ 508 0006 8146     		mov	r9, r0
+ 509 0008 0F46     		mov	r7, r1
+ 510 000a 9046     		mov	r8, r2
+ 150:Drivers/RTC/clock_calendar.c ****   	RTC_DateTypeDef *BigDate = &tData;
+ 511              		.loc 1 150 0
+ 512 000c 0024     		movs	r4, #0
+ 513 000e 02AE     		add	r6, sp, #8
+ 514 0010 46F8044D 		str	r4, [r6, #-4]!
+ 515              	.LVL45:
+ 152:Drivers/RTC/clock_calendar.c ****     /* */
+ 516              		.loc 1 152 0
+ 517 0014 4FF0FF0A 		mov	r10, #255
+ 518              	.LBB2:
+ 154:Drivers/RTC/clock_calendar.c ****     		if(Date_Compare(Date[i], (*BigDate), Day_or_Month) == 1) {
+ 519              		.loc 1 154 0
+ 520 0018 01E0     		b	.L47
+ 521              	.LVL46:
+ 522              	.L48:
+ 154:Drivers/RTC/clock_calendar.c ****     		if(Date_Compare(Date[i], (*BigDate), Day_or_Month) == 1) {
+ 523              		.loc 1 154 0 is_stmt 0 discriminator 2
+ 524 001a 0134     		adds	r4, r4, #1
+ 525              	.LVL47:
+ARM GAS  /tmp/cc2L3Cck.s 			page 14
+
+
+ 526 001c E4B2     		uxtb	r4, r4
+ 527              	.LVL48:
+ 528              	.L47:
+ 154:Drivers/RTC/clock_calendar.c ****     		if(Date_Compare(Date[i], (*BigDate), Day_or_Month) == 1) {
+ 529              		.loc 1 154 0 discriminator 1
+ 530 001e BC42     		cmp	r4, r7
+ 531 0020 0BD2     		bcs	.L52
+ 155:Drivers/RTC/clock_calendar.c ****       			BigDate = &Date[i];
+ 532              		.loc 1 155 0 is_stmt 1
+ 533 0022 09EB8405 		add	r5, r9, r4, lsl #2
+ 534 0026 4246     		mov	r2, r8
+ 535 0028 3168     		ldr	r1, [r6]	@ unaligned
+ 536 002a 2868     		ldr	r0, [r5]	@ unaligned
+ 537 002c FFF7FEFF 		bl	Date_Compare
+ 538              	.LVL49:
+ 539 0030 0128     		cmp	r0, #1
+ 540 0032 F2D1     		bne	.L48
+ 157:Drivers/RTC/clock_calendar.c ****     		}
+ 541              		.loc 1 157 0
+ 542 0034 A246     		mov	r10, r4
+ 543              	.LVL50:
+ 156:Drivers/RTC/clock_calendar.c ****       			j = i;
+ 544              		.loc 1 156 0
+ 545 0036 2E46     		mov	r6, r5
+ 546              	.LVL51:
+ 547 0038 EFE7     		b	.L48
+ 548              	.LVL52:
+ 549              	.L52:
+ 550              	.LBE2:
+ 161:Drivers/RTC/clock_calendar.c **** 
+ 551              		.loc 1 161 0
+ 552 003a 5046     		mov	r0, r10
+ 553 003c 02B0     		add	sp, sp, #8
+ 554              	.LCFI17:
+ 555              		.cfi_def_cfa_offset 32
+ 556              		@ sp needed
+ 557 003e BDE8F087 		pop	{r4, r5, r6, r7, r8, r9, r10, pc}
+ 558              		.cfi_endproc
+ 559              	.LFE71:
+ 561              		.comm	SummerTimeCorrect,2,2
+ 562              		.global	s_WeekDay
+ 563              		.global	WeekDays_Names
+ 564              		.global	Months_Names
+ 565              		.section	.bss.s_WeekDay,"aw",%nobits
+ 568              	s_WeekDay:
+ 569 0000 00       		.space	1
+ 570              		.section	.data.Months_Names,"aw",%progbits
+ 571              		.align	2
+ 574              	Months_Names:
+ 575 0000 7C000000 		.word	.LC7
+ 576 0004 8C000000 		.word	.LC8
+ 577 0008 9C000000 		.word	.LC9
+ 578 000c A8000000 		.word	.LC10
+ 579 0010 B8000000 		.word	.LC11
+ 580 0014 C0000000 		.word	.LC12
+ 581 0018 CC000000 		.word	.LC13
+ 582 001c D8000000 		.word	.LC14
+ARM GAS  /tmp/cc2L3Cck.s 			page 15
+
+
+ 583 0020 E8000000 		.word	.LC15
+ 584 0024 FC000000 		.word	.LC16
+ 585 0028 0C010000 		.word	.LC17
+ 586 002c 1C010000 		.word	.LC18
+ 587              		.section	.data.WeekDays_Names,"aw",%progbits
+ 588              		.align	2
+ 591              	WeekDays_Names:
+ 592 0000 00000000 		.word	.LC0
+ 593 0004 18000000 		.word	.LC1
+ 594 0008 30000000 		.word	.LC2
+ 595 000c 40000000 		.word	.LC3
+ 596 0010 4C000000 		.word	.LC4
+ 597 0014 5C000000 		.word	.LC5
+ 598 0018 6C000000 		.word	.LC6
+ 599              		.section	.rodata.str1.4,"aMS",%progbits,1
+ 600              		.align	2
+ 601              	.LC0:
+ 602 0000 D092D0BE 		.ascii	"\320\222\320\276\321\201\320\272\321\200\320\265\321"
+ 602      D181D0BA 
+ 602      D180D0B5 
+ 602      D1
+ 603 000d 81D0B5D0 		.ascii	"\201\320\265\320\275\321\214\320\265\000"
+ 603      BDD18CD0 
+ 603      B500
+ 604 0017 00       		.space	1
+ 605              	.LC1:
+ 606 0018 D09FD0BE 		.ascii	"\320\237\320\276\320\275\320\265\320\264\320\265\320"
+ 606      D0BDD0B5 
+ 606      D0B4D0B5 
+ 606      D0
+ 607 0025 BBD18CD0 		.ascii	"\273\321\214\320\275\320\270\320\272\000"
+ 607      BDD0B8D0 
+ 607      BA00
+ 608 002f 00       		.space	1
+ 609              	.LC2:
+ 610 0030 D092D182 		.ascii	"\320\222\321\202\320\276\321\200\320\275\320\270\320"
+ 610      D0BED180 
+ 610      D0BDD0B8 
+ 610      D0
+ 611 003d BA00     		.ascii	"\272\000"
+ 612 003f 00       		.space	1
+ 613              	.LC3:
+ 614 0040 D0A1D180 		.ascii	"\320\241\321\200\320\265\320\264\320\260\000"
+ 614      D0B5D0B4 
+ 614      D0B000
+ 615 004b 00       		.space	1
+ 616              	.LC4:
+ 617 004c D0A7D0B5 		.ascii	"\320\247\320\265\321\202\320\262\320\265\321\200\320"
+ 617      D182D0B2 
+ 617      D0B5D180 
+ 617      D0
+ 618 0059 B300     		.ascii	"\263\000"
+ 619 005b 00       		.space	1
+ 620              	.LC5:
+ 621 005c D09FD18F 		.ascii	"\320\237\321\217\321\202\320\275\320\270\321\206\320"
+ 621      D182D0BD 
+ 621      D0B8D186 
+ARM GAS  /tmp/cc2L3Cck.s 			page 16
+
+
+ 621      D0
+ 622 0069 B000     		.ascii	"\260\000"
+ 623 006b 00       		.space	1
+ 624              	.LC6:
+ 625 006c D0A1D183 		.ascii	"\320\241\321\203\320\261\320\276\321\202\320\260\000"
+ 625      D0B1D0BE 
+ 625      D182D0B0 
+ 625      00
+ 626 0079 000000   		.space	3
+ 627              	.LC7:
+ 628 007c D0AFD0BD 		.ascii	"\320\257\320\275\320\262\320\260\321\200\321\214\000"
+ 628      D0B2D0B0 
+ 628      D180D18C 
+ 628      00
+ 629 0089 000000   		.space	3
+ 630              	.LC8:
+ 631 008c D0A4D0B5 		.ascii	"\320\244\320\265\320\262\321\200\320\260\320\273\321"
+ 631      D0B2D180 
+ 631      D0B0D0BB 
+ 631      D1
+ 632 0099 8C00     		.ascii	"\214\000"
+ 633 009b 00       		.space	1
+ 634              	.LC9:
+ 635 009c D09CD0B0 		.ascii	"\320\234\320\260\321\200\321\202\000"
+ 635      D180D182 
+ 635      00
+ 636 00a5 000000   		.space	3
+ 637              	.LC10:
+ 638 00a8 D090D0BF 		.ascii	"\320\220\320\277\321\200\320\265\320\273\321\214\000"
+ 638      D180D0B5 
+ 638      D0BBD18C 
+ 638      00
+ 639 00b5 000000   		.space	3
+ 640              	.LC11:
+ 641 00b8 D09CD0B0 		.ascii	"\320\234\320\260\320\271\000"
+ 641      D0B900
+ 642 00bf 00       		.space	1
+ 643              	.LC12:
+ 644 00c0 D098D18E 		.ascii	"\320\230\321\216\320\275\321\214\000"
+ 644      D0BDD18C 
+ 644      00
+ 645 00c9 000000   		.space	3
+ 646              	.LC13:
+ 647 00cc D098D18E 		.ascii	"\320\230\321\216\320\273\321\214\000"
+ 647      D0BBD18C 
+ 647      00
+ 648 00d5 000000   		.space	3
+ 649              	.LC14:
+ 650 00d8 D090D0B2 		.ascii	"\320\220\320\262\320\263\321\203\321\201\321\202\000"
+ 650      D0B3D183 
+ 650      D181D182 
+ 650      00
+ 651 00e5 000000   		.space	3
+ 652              	.LC15:
+ 653 00e8 D0A1D0B5 		.ascii	"\320\241\320\265\320\275\321\202\321\217\320\261\321"
+ 653      D0BDD182 
+ 653      D18FD0B1 
+ARM GAS  /tmp/cc2L3Cck.s 			page 17
+
+
+ 653      D1
+ 654 00f5 80D18C00 		.ascii	"\200\321\214\000"
+ 655 00f9 000000   		.space	3
+ 656              	.LC16:
+ 657 00fc D09ED0BA 		.ascii	"\320\236\320\272\321\202\321\217\320\261\321\200\321"
+ 657      D182D18F 
+ 657      D0B1D180 
+ 657      D1
+ 658 0109 8C00     		.ascii	"\214\000"
+ 659 010b 00       		.space	1
+ 660              	.LC17:
+ 661 010c D09DD0BE 		.ascii	"\320\235\320\276\321\217\320\261\321\200\321\214\000"
+ 661      D18FD0B1 
+ 661      D180D18C 
+ 661      00
+ 662 0119 000000   		.space	3
+ 663              	.LC18:
+ 664 011c D094D0B5 		.ascii	"\320\224\320\265\320\272\320\260\320\261\321\200\321"
+ 664      D0BAD0B0 
+ 664      D0B1D180 
+ 664      D1
+ 665 0129 8C00     		.ascii	"\214\000"
+ 666              		.text
+ 667              	.Letext0:
+ 668              		.file 2 "/usr/arm-none-eabi/include/machine/_default_types.h"
+ 669              		.file 3 "/usr/arm-none-eabi/include/sys/_stdint.h"
+ 670              		.file 4 "Drivers/CMSIS/Include/core_cm3.h"
+ 671              		.file 5 "Drivers/CMSIS/Device/ST/STM32F1xx/Include/system_stm32f1xx.h"
+ 672              		.file 6 "Drivers/CMSIS/Device/ST/STM32F1xx/Include/stm32f103xe.h"
+ 673              		.file 7 "/usr/arm-none-eabi/include/sys/lock.h"
+ 674              		.file 8 "/usr/arm-none-eabi/include/sys/_types.h"
+ 675              		.file 9 "/usr/lib/gcc/arm-none-eabi/7.3.1/include/stddef.h"
+ 676              		.file 10 "/usr/arm-none-eabi/include/sys/reent.h"
+ 677              		.file 11 "Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_def.h"
+ 678              		.file 12 "Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_rtc.h"
+ 679              		.file 13 "Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal.h"
+ 680              		.file 14 "Inc/rtc.h"
+ 681              		.file 15 "Drivers/RTC/clock_calendar.h"
+ 682              		.file 16 "Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_rtc_ex.h"
+ 683              		.file 17 "Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_pwr.h"
+ARM GAS  /tmp/cc2L3Cck.s 			page 18
+
+
+DEFINED SYMBOLS
+                            *ABS*:0000000000000000 clock_calendar.c
+     /tmp/cc2L3Cck.s:16     .text.RTC_IsLeapYear:0000000000000000 $t
+     /tmp/cc2L3Cck.s:22     .text.RTC_IsLeapYear:0000000000000000 RTC_IsLeapYear
+     /tmp/cc2L3Cck.s:74     .text.RTC_IsLeapYear:000000000000003c $d
+     /tmp/cc2L3Cck.s:79     .text._save_date_to_backup:0000000000000000 $t
+     /tmp/cc2L3Cck.s:85     .text._save_date_to_backup:0000000000000000 _save_date_to_backup
+     /tmp/cc2L3Cck.s:137    .text._save_date_to_backup:000000000000003c $d
+     /tmp/cc2L3Cck.s:142    .text.RTC_Configuration:0000000000000000 $t
+     /tmp/cc2L3Cck.s:149    .text.RTC_Configuration:0000000000000000 RTC_Configuration
+     /tmp/cc2L3Cck.s:226    .text.RTC_Configuration:0000000000000060 $d
+                            *COM*:0000000000000002 SummerTimeCorrect
+     /tmp/cc2L3Cck.s:232    .text.SetTime:0000000000000000 $t
+     /tmp/cc2L3Cck.s:239    .text.SetTime:0000000000000000 SetTime
+     /tmp/cc2L3Cck.s:275    .text.SetTime:0000000000000020 $d
+     /tmp/cc2L3Cck.s:280    .text.SetDate:0000000000000000 $t
+     /tmp/cc2L3Cck.s:287    .text.SetDate:0000000000000000 SetDate
+     /tmp/cc2L3Cck.s:382    .text.SetDate:0000000000000060 $d
+     /tmp/cc2L3Cck.s:387    .text.Date_Compare:0000000000000000 $t
+     /tmp/cc2L3Cck.s:394    .text.Date_Compare:0000000000000000 Date_Compare
+     /tmp/cc2L3Cck.s:480    .text.Date_Find_Last:0000000000000000 $t
+     /tmp/cc2L3Cck.s:487    .text.Date_Find_Last:0000000000000000 Date_Find_Last
+     /tmp/cc2L3Cck.s:568    .bss.s_WeekDay:0000000000000000 s_WeekDay
+     /tmp/cc2L3Cck.s:591    .data.WeekDays_Names:0000000000000000 WeekDays_Names
+     /tmp/cc2L3Cck.s:574    .data.Months_Names:0000000000000000 Months_Names
+     /tmp/cc2L3Cck.s:569    .bss.s_WeekDay:0000000000000000 $d
+     /tmp/cc2L3Cck.s:571    .data.Months_Names:0000000000000000 $d
+     /tmp/cc2L3Cck.s:588    .data.WeekDays_Names:0000000000000000 $d
+     /tmp/cc2L3Cck.s:600    .rodata.str1.4:0000000000000000 $d
+
+UNDEFINED SYMBOLS
+HAL_PWR_EnableBkUpAccess
+HAL_RTCEx_BKUPWrite
+HAL_PWR_DisableBkUpAccess
+hrtc
+HAL_RTCEx_BKUPRead
+HAL_RTC_SetDate
+HAL_RTC_GetDate
+HAL_RTC_SetTime
+HAL_Delay
